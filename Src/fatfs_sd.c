@@ -2,7 +2,7 @@
 #define FALSE 0
 #define bool BYTE
 
-#include "stm32f1xx_hal.h"
+#include "stm32f0xx_hal.h"
 #include "diskio.h"
 #include "fatfs_sd.h"
 
@@ -121,92 +121,92 @@ static void SD_PowerOn(void)
   PowerFlag = 1;
 }
 
-/* 전원 끄기 */
+/* ì „ì›� ë�„ê¸° */
 static void SD_PowerOff(void) 
 {
   PowerFlag = 0;
 }
 
-/* 전원 상태 확인 */
+/* ì „ì›� ìƒ�íƒœ í™•ì�¸ */
 static uint8_t SD_CheckPower(void) 
 {
   /*  0=off, 1=on */
   return PowerFlag;
 }
 
-/* 데이터 패킷 수신 */
+/* ë�°ì�´í„° íŒ¨í‚· ìˆ˜ì‹  */
 static bool SD_RxDataBlock(BYTE *buff, UINT btr) 
 {
   uint8_t token;
   
-  /* 100ms 타이머 */
+  /* 100ms íƒ€ì�´ë¨¸ */
   Timer1 = 10;
 
-  /* 응답 대기 */		
+  /* ì�‘ë‹µ ëŒ€ê¸° */		
   do 
   {    
     token = SPI_RxByte();
   } while((token == 0xFF) && Timer1);
   
-  /* 0xFE 이외 Token 수신 시 에러 처리 */
+  /* 0xFE ì�´ì™¸ Token ìˆ˜ì‹  ì‹œ ì—�ëŸ¬ ì²˜ë¦¬ */
   if(token != 0xFE)
     return FALSE;
   
-  /* 버퍼에 데이터 수신 */
+  /* ë²„í�¼ì—� ë�°ì�´í„° ìˆ˜ì‹  */
   do 
   {     
     SPI_RxBytePtr(buff++);
     SPI_RxBytePtr(buff++);
   } while(btr -= 2);
   
-  SPI_RxByte(); /* CRC 무시 */
+  SPI_RxByte(); /* CRC ë¬´ì‹œ */
   SPI_RxByte();
   
   return TRUE;
 }
 
-/* 데이터 전송 패킷 */
+/* ë�°ì�´í„° ì „ì†¡ íŒ¨í‚· */
 #if _READONLY == 0
 static bool SD_TxDataBlock(const BYTE *buff, BYTE token)
 {
   uint8_t resp, wc;
   uint8_t i = 0;
     
-  /* SD카드 준비 대기 */
+  /* SDì¹´ë“œ ì¤€ë¹„ ëŒ€ê¸° */
   if (SD_ReadyWait() != 0xFF)
     return FALSE;
   
-  /* 토큰 전송 */
+  /* í† í�° ì „ì†¡ */
   SPI_TxByte(token);      
   
-  /* 데이터 토큰인 경우 */
+  /* ë�°ì�´í„° í† í�°ì�¸ ê²½ìš° */
   if (token != 0xFD) 
   { 
     wc = 0;
     
-    /* 512 바이트 데이터 전송 */
+    /* 512 ë°”ì�´íŠ¸ ë�°ì�´í„° ì „ì†¡ */
     do 
     { 
       SPI_TxByte(*buff++);
       SPI_TxByte(*buff++);
     } while (--wc);
     
-    SPI_RxByte();       /* CRC 무시 */
+    SPI_RxByte();       /* CRC ë¬´ì‹œ */
     SPI_RxByte();
     
-    /* 데이트 응답 수신 */        
+    /* ë�°ì�´íŠ¸ ì�‘ë‹µ ìˆ˜ì‹  */        
     while (i <= 64) 
     {			
       resp = SPI_RxByte();
       
-      /* 에러 응답 처리 */
+      /* ì—�ëŸ¬ ì�‘ë‹µ ì²˜ë¦¬ */
       if ((resp & 0x1F) == 0x05) 
         break;
       
       i++;
     }
     
-    /* SPI 수신 버퍼 Clear */
+    /* SPI ìˆ˜ì‹  ë²„í�¼ Clear */
     while (SPI_RxByte() == 0);
   }
   
@@ -217,23 +217,23 @@ static bool SD_TxDataBlock(const BYTE *buff, BYTE token)
 }
 #endif /* _READONLY */
 
-/* CMD 패킷 전송 */
+/* CMD íŒ¨í‚· ì „ì†¡ */
 static BYTE SD_SendCmd(BYTE cmd, DWORD arg) 
 {
   uint8_t crc, res;
   
-  /* SD카드 대기 */
+  /* SDì¹´ë“œ ëŒ€ê¸° */
   if (SD_ReadyWait() != 0xFF)
     return 0xFF;
   
-  /* 명령 패킷 전송 */
+  /* ëª…ë ¹ íŒ¨í‚· ì „ì†¡ */
   SPI_TxByte(cmd); 			/* Command */
   SPI_TxByte((BYTE) (arg >> 24)); 	/* Argument[31..24] */
   SPI_TxByte((BYTE) (arg >> 16)); 	/* Argument[23..16] */
   SPI_TxByte((BYTE) (arg >> 8)); 	/* Argument[15..8] */
   SPI_TxByte((BYTE) arg); 		/* Argument[7..0] */
   
-  /* 명령별 CRC 준비 */
+  /* ëª…ë ¹ë³„ CRC ì¤€ë¹„ */
   crc = 0;  
   if (cmd == CMD0)
     crc = 0x95; /* CRC for CMD0(0) */
@@ -241,14 +241,14 @@ static BYTE SD_SendCmd(BYTE cmd, DWORD arg)
   if (cmd == CMD8)
     crc = 0x87; /* CRC for CMD8(0x1AA) */
   
-  /* CRC 전송 */
+  /* CRC ì „ì†¡ */
   SPI_TxByte(crc);
   
-  /* CMD12 Stop Reading 명령인 경우에는 응답 바이트 하나를 버린다 */
+  /* CMD12 Stop Reading ëª…ë ¹ì�¸ ê²½ìš°ì—�ëŠ” ì�‘ë‹µ ë°”ì�´íŠ¸ í•˜ë‚˜ë¥¼ ë²„ë¦°ë‹¤ */
   if (cmd == CMD12)
     SPI_RxByte();
   
-  /* 10회 내에 정상 데이터를 수신한다. */
+  /* 10íšŒ ë‚´ì—� ì •ìƒ� ë�°ì�´í„°ë¥¼ ìˆ˜ì‹ í•œë‹¤. */
   uint8_t n = 10; 
   do
   {
@@ -259,39 +259,39 @@ static BYTE SD_SendCmd(BYTE cmd, DWORD arg)
 }
 
 /*-----------------------------------------------------------------------
-  fatfs에서 사용되는 Global 함수들
-  user_diskio.c 파일에서 사용된다.
+  fatfsì—�ì„œ ì‚¬ìš©ë�˜ëŠ” Global í•¨ìˆ˜ë“¤
+  user_diskio.c íŒŒì�¼ì—�ì„œ ì‚¬ìš©ë�œë‹¤.
 -----------------------------------------------------------------------*/
 
-/* SD카드 초기화 */
+/* SDì¹´ë“œ ì´ˆê¸°í™” */
 DSTATUS SD_disk_initialize(BYTE drv) 
 {
   uint8_t n, type, ocr[4];
   
-  /* 한종류의 드라이브만 지원 */
+  /* í•œì¢…ë¥˜ì�˜ ë“œë�¼ì�´ë¸Œë§Œ ì§€ì›� */
   if(drv)
     return STA_NOINIT;  
   
-  /* SD카드 미삽입 */
+  /* SDì¹´ë“œ ë¯¸ì‚½ìž… */
   if(Stat & STA_NODISK)
     return Stat;        
   
-  /* SD카드 Power On */
+  /* SDì¹´ë“œ Power On */
   SD_PowerOn();         
   
-  /* SPI 통신을 위해 Chip Select */
+  /* SPI í†µì‹ ì�„ ìœ„í•´ Chip Select */
   SELECT();             
   
-  /* SD카드 타입변수 초기화 */
+  /* SDì¹´ë“œ íƒ€ìž…ë³€ìˆ˜ ì´ˆê¸°í™” */
   type = 0;
   
-  /* Idle 상태 진입 */
+  /* Idle ìƒ�íƒœ ì§„ìž… */
   if (SD_SendCmd(CMD0, 0) == 1) 
   { 
-    /* 타이머 1초 설정 */
+    /* íƒ€ì�´ë¨¸ 1ì´ˆ ì„¤ì • */
     Timer1 = 100;
     
-    /* SD 인터페이스 동작 조건 확인 */
+    /* SD ì�¸í„°íŽ˜ì�´ìŠ¤ ë�™ìž‘ ì¡°ê±´ í™•ì�¸ */
     if (SD_SendCmd(CMD8, 0x1AA) == 1) 
     { 
       /* SDC Ver2+ */
@@ -302,7 +302,7 @@ DSTATUS SD_disk_initialize(BYTE drv)
       
       if (ocr[2] == 0x01 && ocr[3] == 0xAA) 
       { 
-        /* 2.7-3.6V 전압범위 동작 */
+        /* 2.7-3.6V ì „ì••ë²”ìœ„ ë�™ìž‘ */
         do {
           if (SD_SendCmd(CMD55, 0) <= 1 && SD_SendCmd(CMD41, 1UL << 30) == 0)
             break; /* ACMD41 with HCS bit */
@@ -340,7 +340,7 @@ DSTATUS SD_disk_initialize(BYTE drv)
       
       if (!Timer1 || SD_SendCmd(CMD16, 512) != 0) 
       {
-        /* 블럭 길이 선택 */
+        /* ë¸”ëŸ­ ê¸¸ì�´ ì„ íƒ� */
         type = 0;
       }
     }
@@ -350,7 +350,7 @@ DSTATUS SD_disk_initialize(BYTE drv)
   
   DESELECT();
   
-  SPI_RxByte(); /* Idle 상태 전환 (Release DO) */
+  SPI_RxByte(); /* Idle ìƒ�íƒœ ì „í™˜ (Release DO) */
   
   if (type) 
   {
@@ -366,7 +366,7 @@ DSTATUS SD_disk_initialize(BYTE drv)
   return Stat;
 }
 
-/* 디스크 상태 확인 */
+/* ë””ìŠ¤í�¬ ìƒ�íƒœ í™•ì�¸ */
 DSTATUS SD_disk_status(BYTE drv) 
 {
   if (drv)
@@ -375,7 +375,7 @@ DSTATUS SD_disk_status(BYTE drv)
   return Stat;
 }
 
-/* 섹터 읽기 */
+/* ì„¹í„° ì�½ê¸° */
 DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count) 
 {
   if (pdrv || !count)
@@ -385,19 +385,19 @@ DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
     return RES_NOTRDY;
   
   if (!(CardType & 4))
-    sector *= 512;      /* 지정 sector를 Byte addressing 단위로 변경 */
+    sector *= 512;      /* ì§€ì • sectorë¥¼ Byte addressing ë‹¨ìœ„ë¡œ ë³€ê²½ */
   
   SELECT();
   
   if (count == 1) 
   { 
-    /* 싱글 블록 읽기 */
+    /* ì‹±ê¸€ ë¸”ë¡� ì�½ê¸° */
     if ((SD_SendCmd(CMD17, sector) == 0) && SD_RxDataBlock(buff, 512))
       count = 0;
   } 
   else 
   { 
-    /* 다중 블록 읽기 */
+    /* ë‹¤ì¤‘ ë¸”ë¡� ì�½ê¸° */
     if (SD_SendCmd(CMD18, sector) == 0) 
     {       
       do {
@@ -407,18 +407,18 @@ DRESULT SD_disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
         buff += 512;
       } while (--count);
       
-      /* STOP_TRANSMISSION, 모든 블럭을 다 읽은 후, 전송 중지 요청 */
+      /* STOP_TRANSMISSION, ëª¨ë“  ë¸”ëŸ­ì�„ ë‹¤ ì�½ì�€ í›„, ì „ì†¡ ì¤‘ì§€ ìš”ì²­ */
       SD_SendCmd(CMD12, 0); 
     }
   }
   
   DESELECT();
-  SPI_RxByte(); /* Idle 상태(Release DO) */
+  SPI_RxByte(); /* Idle ìƒ�íƒœ(Release DO) */
   
   return count ? RES_ERROR : RES_OK;
 }
 
-/* 섹터 쓰기 */
+/* ì„¹í„° ì“°ê¸° */
 #if _READONLY == 0
 DRESULT SD_disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count) 
 {
@@ -432,19 +432,19 @@ DRESULT SD_disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
     return RES_WRPRT;
   
   if (!(CardType & 4))
-    sector *= 512; /* 지정 sector를 Byte addressing 단위로 변경 */
+    sector *= 512; /* ì§€ì • sectorë¥¼ Byte addressing ë‹¨ìœ„ë¡œ ë³€ê²½ */
   
   SELECT();
   
   if (count == 1) 
   { 
-    /* 싱글 블록 쓰기 */
+    /* ì‹±ê¸€ ë¸”ë¡� ì“°ê¸° */
     if ((SD_SendCmd(CMD24, sector) == 0) && SD_TxDataBlock(buff, 0xFE))
       count = 0;
   } 
   else 
   { 
-    /* 다중 블록 쓰기 */
+    /* ë‹¤ì¤‘ ë¸”ë¡� ì“°ê¸° */
     if (CardType & 2) 
     {
       SD_SendCmd(CMD55, 0);
@@ -474,7 +474,7 @@ DRESULT SD_disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
 }
 #endif /* _READONLY */
 
-/* 기타 함수 */
+/* ê¸°íƒ€ í•¨ìˆ˜ */
 DRESULT SD_disk_ioctl(BYTE drv, BYTE ctrl, void *buff) 
 {
   DRESULT res;
@@ -517,7 +517,7 @@ DRESULT SD_disk_ioctl(BYTE drv, BYTE ctrl, void *buff)
     switch (ctrl) 
     {
     case GET_SECTOR_COUNT: 
-      /* SD카드 내 Sector의 개수 (DWORD) */
+      /* SDì¹´ë“œ ë‚´ Sectorì�˜ ê°œìˆ˜ (DWORD) */
       if ((SD_SendCmd(CMD9, 0) == 0) && SD_RxDataBlock(csd, 16)) 
       {
         if ((csd[0] >> 6) == 1) 
@@ -539,31 +539,31 @@ DRESULT SD_disk_ioctl(BYTE drv, BYTE ctrl, void *buff)
       break;
       
     case GET_SECTOR_SIZE: 
-      /* 섹터의 단위 크기 (WORD) */
+      /* ì„¹í„°ì�˜ ë‹¨ìœ„ í�¬ê¸° (WORD) */
       *(WORD*) buff = 512;
       res = RES_OK;
       break;
       
     case CTRL_SYNC: 
-      /* 쓰기 동기화 */
+      /* ì“°ê¸° ë�™ê¸°í™” */
       if (SD_ReadyWait() == 0xFF)
         res = RES_OK;
       break;
       
     case MMC_GET_CSD: 
-      /* CSD 정보 수신 (16 bytes) */
+      /* CSD ì •ë³´ ìˆ˜ì‹  (16 bytes) */
       if (SD_SendCmd(CMD9, 0) == 0 && SD_RxDataBlock(ptr, 16))
         res = RES_OK;
       break;
       
     case MMC_GET_CID: 
-      /* CID 정보 수신 (16 bytes) */
+      /* CID ì •ë³´ ìˆ˜ì‹  (16 bytes) */
       if (SD_SendCmd(CMD10, 0) == 0 && SD_RxDataBlock(ptr, 16))
         res = RES_OK;
       break;
       
     case MMC_GET_OCR: 
-      /* OCR 정보 수신 (4 bytes) */
+      /* OCR ì •ë³´ ìˆ˜ì‹  (4 bytes) */
       if (SD_SendCmd(CMD58, 0) == 0) 
       {         
         for (n = 0; n < 4; n++)

@@ -39,9 +39,15 @@
   *
   *
   * Questions to ponder:
-  * what value of Max_ss --> max sector size are needed
-  * 	I cannot do 4096 --> currently at 2048
+  * - what value of Max_ss --> max sector size are needed
+  * 	I cannot do 4096 --> currently at 512
+  * - I am not sure if this is the correct pin
+  * 	#define SD_CS_GPIO_Port GPIOB
+  * 	#define SD_CS_Pin GPIO_PIN_0
   *
+  *
+  * Resources Used:
+  * https://www.youtube.com/watch?v=spVIZO-jbxE
   ******************************************************************************
   */
 /* USER CODE END Header */
@@ -52,6 +58,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <fatfs_sd.h>
 #include <string.h>
 /* USER CODE END Includes */
 
@@ -97,6 +104,41 @@ static void MX_SPI1_Init(void);
 
 uint32_t value[10];  //to store the adc values
 
+FATFS fs; 			//file system
+FIL fil;  			//file
+FRESULT fresult; 	//to store the result
+char buffer[1024]; 	//to store data
+
+UINT br, bw;  		//file read/write count
+
+/* capacity related variables */
+FATFS *pfs;
+DWORD fre_clust;
+uint32_t total, free_space;
+
+/* to send the data to the uart */
+void send_uart (char *string)
+{
+	uint8_t len = strlen (string);
+	HAL_UART_Transmit(&huart1, (uint8_t *) string, len, 2000);  // transmit in blocking mode
+}
+
+/* to find the size of data in the buffer */
+int bufsize (char *buf)
+{
+	int i=0;
+	while (*buf++ != '\0') i++;
+	return i;
+}
+
+void bufclear (void)  // clear buffer
+{
+	for (int i=0; i<1024; i++)
+	{
+		buffer[i] = '\0';
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -134,34 +176,80 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+  /* Mount SD Card */
+      fresult = f_mount(&fs, "", 0);
+      if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
+      else send_uart("SD CARD mounted successfully...\n");
 
 
-	char *msg = "Begin ADC 10 Channel w/ LED Test\r\n";
-	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
+      /*************** Card capacity details ********************/
 
-	msg = "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n";
-	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
+          /* Check free space */
+          f_getfree("", &fre_clust, &pfs);
 
-	while (1)
-	{
-		HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-		if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
-			for (int i = 0; i < 6; i++) {
-				//blink led 3 times to show that data collection is initialized
-				HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-				HAL_Delay(100);  //1000ms delay
-			}
-			break;
-		}
-		HAL_Delay(100);
-	}
+          total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+          sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
+          send_uart(buffer);
+          bufclear();
+          free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+          sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
+          send_uart(buffer);
 
 
-	HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
-	//here value is the buffer, where the adc values are going to store
-	//10 is the number of values going to store == no. of channels
+          /************* The following operation is using PUTS and GETS *********************/
 
-	char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * 9);
+
+          /* Open file to write/ create a file if it doesn't exist */
+          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+          /* Writing text */
+          fresult = f_puts("This data is from the First FILE\n\n", &fil);
+
+          /* Close file */
+          fresult = f_close(&fil);
+
+          send_uart ("File1.txt created and the data is written \n");
+
+          /* Open file to read */
+          fresult = f_open(&fil, "file1.txt", FA_READ);
+
+          /* Read string from the file */
+          f_gets(buffer, fil.fsize, &fil);
+
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
+
+// code from previous program to initialize with user button
+//	char *msg = "Begin ADC 10 Channel w/ LED Test\r\n";
+//	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
+//
+//	msg = "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n";
+//	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
+//
+//	while (1)
+//	{
+//		HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
+//		if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
+//			for (int i = 0; i < 6; i++) {
+//				//blink led 3 times to show that data collection is initialized
+//				HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+//				HAL_Delay(100);  //1000ms delay
+//			}
+//			break;
+//		}
+//		HAL_Delay(100);
+//	}
+//
+//
+//	HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
+//	//here value is the buffer, where the adc values are going to store
+//	//10 is the number of values going to store == no. of channels
+//
+//	char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * 9);
 
   /* USER CODE END 2 */
  
@@ -176,27 +264,27 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 
-//	else
-//	{
-//		HAL_GPIO_WritePin(GPIOC, LD3_GREEN_LED_Pin,GPIO_PIN_SET);
-//	}
+////	else
+////	{
+////		HAL_GPIO_WritePin(GPIOC, LD3_GREEN_LED_Pin,GPIO_PIN_SET);
+////	}
+////
+////	HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin); //Toggle the state of pin PC9
+////	HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin); //Toggle the state of pin PC9
 //
-//	HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin); //Toggle the state of pin PC9
-//	HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin); //Toggle the state of pin PC9
-
-//	sprintf(str, "%4d", value[9]);
+////	sprintf(str, "%4d", value[9]);
+////	HAL_UART_Transmit(&huart1, str, strlen(str), 10);
+//
+//	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d", value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9]);
 //	HAL_UART_Transmit(&huart1, str, strlen(str), 10);
-
-	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d", value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9]);
-	HAL_UART_Transmit(&huart1, str, strlen(str), 10);
-
-
-	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
-
-	HAL_ADC_Stop(&hadc);
-	HAL_ADC_Start(&hadc);
-
-	HAL_Delay(1000);  //1000ms delay
+//
+//
+//	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
+//
+//	HAL_ADC_Stop(&hadc);
+//	HAL_ADC_Start(&hadc);
+//
+//	HAL_Delay(1000);  //1000ms delay
   }
   /* USER CODE END 3 */
 }
