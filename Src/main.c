@@ -195,105 +195,105 @@ int main(void)
           send_uart(buffer);
 
 
-          /************* The following operation is using PUTS and GETS *********************/
-
-
-          /* Open file to write/ create a file if it doesn't exist */
-          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-          /* Writing text */
-          fresult = f_puts("This data is from the First FILE\n\n", &fil);
-
-          /* Close file */
-          fresult = f_close(&fil);
-
-          send_uart ("File1.txt created and the data is written \n");
-
-          /* Open file to read */
-          fresult = f_open(&fil, "file1.txt", FA_READ);
-
-          /* Read string from the file */
-          f_gets(buffer, fil.fsize, &fil);
-
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /**************** The following operation is using f_write and f_read **************************/
-
-          /* Create second file with read write access and open it */
-          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-          /* Writing text */
-          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
-
-          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
-
-          send_uart ("File2.txt created and data is written\n");
-
-          /* Close file */
-          f_close(&fil);
-
-
-
-          // clearing buffer to show that result obtained is from the file
-          bufclear();
-
-          /* Open second file to read */
-          fresult = f_open(&fil, "file2.txt", FA_READ);
-
-          /* Read data from the file
-           * Please see the function details for the arguments */
-          f_read (&fil, buffer, fil.fsize, &br);
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /*********************UPDATING an existing file ***************************/
-
-          /* Open the file with write access */
-          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
-
-          /* Move to offset to the end of the file */
-          fresult = f_lseek(&fil, fil.fsize);
-
-          /* write the string to the file */
-          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
-
-          f_close (&fil);
-
-          /* Open to read the file */
-          fresult = f_open (&fil, "file2.txt", FA_READ);
-
-          /* Read string from the file */
-          f_read (&fil, buffer, fil.fsize, &br);
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
-
-          fresult = f_unlink("/file1.txt");
-          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
-
-          fresult = f_unlink("/file2.txt");
-          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
-
-          /* Unmount SDCARD */
-          fresult = f_mount(NULL, "", 1);
-          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+//          /************* The following operation is using PUTS and GETS *********************/
+//
+//
+//          /* Open file to write/ create a file if it doesn't exist */
+//          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+//
+//          /* Writing text */
+//          fresult = f_puts("This data is from the First FILE\n\n", &fil);
+//
+//          /* Close file */
+//          fresult = f_close(&fil);
+//
+//          send_uart ("File1.txt created and the data is written \n");
+//
+//          /* Open file to read */
+//          fresult = f_open(&fil, "file1.txt", FA_READ);
+//
+//          /* Read string from the file */
+//          f_gets(buffer, fil.fsize, &fil);
+//
+//          send_uart(buffer);
+//
+//          /* Close file */
+//          f_close(&fil);
+//
+//          bufclear();
+//
+//
+//          /**************** The following operation is using f_write and f_read **************************/
+//
+//          /* Create second file with read write access and open it */
+//          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+//
+//          /* Writing text */
+//          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
+//
+//          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
+//
+//          send_uart ("File2.txt created and data is written\n");
+//
+//          /* Close file */
+//          f_close(&fil);
+//
+//
+//
+//          // clearing buffer to show that result obtained is from the file
+//          bufclear();
+//
+//          /* Open second file to read */
+//          fresult = f_open(&fil, "file2.txt", FA_READ);
+//
+//          /* Read data from the file
+//           * Please see the function details for the arguments */
+//          f_read (&fil, buffer, fil.fsize, &br);
+//          send_uart(buffer);
+//
+//          /* Close file */
+//          f_close(&fil);
+//
+//          bufclear();
+//
+//
+//          /*********************UPDATING an existing file ***************************/
+//
+//          /* Open the file with write access */
+//          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
+//
+//          /* Move to offset to the end of the file */
+//          fresult = f_lseek(&fil, fil.fsize);
+//
+//          /* write the string to the file */
+//          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
+//
+//          f_close (&fil);
+//
+//          /* Open to read the file */
+//          fresult = f_open (&fil, "file2.txt", FA_READ);
+//
+//          /* Read string from the file */
+//          f_read (&fil, buffer, fil.fsize, &br);
+//          send_uart(buffer);
+//
+//          /* Close file */
+//          f_close(&fil);
+//
+//          bufclear();
+//
+//
+//          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
+//
+//          fresult = f_unlink("/file1.txt");
+//          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
+//
+//          fresult = f_unlink("/file2.txt");
+//          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
+//
+//          /* Unmount SDCARD */
+//          fresult = f_mount(NULL, "", 1);
+//          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
 
 
 
