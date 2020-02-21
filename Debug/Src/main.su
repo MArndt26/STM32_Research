@@ -1,6 +1,6 @@
-main.c:120:6:send_uart	8	static
-main.c:127:5:bufsize	0	static
-main.c:134:6:bufclear	8	static
-main.c:294:6:SystemClock_Config	104	static
-main.c:148:5:main	64	static
-main.c:580:6:Error_Handler	0	static
+main.c:118:6:send_uart	8	static
+main.c:125:5:bufsize	0	static
+main.c:132:6:bufclear	8	static
+main.c:372:6:SystemClock_Config	104	static
+main.c:146:5:main	64	static
+main.c:668:6:Error_Handler	0	static

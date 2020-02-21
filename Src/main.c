@@ -41,9 +41,6 @@
   * Questions to ponder:
   * - what value of Max_ss --> max sector size are needed
   * 	I cannot do 4096 --> currently at 512
-  * - I am not sure if this is the correct pin
-  * 	#define SD_CS_GPIO_Port GPIOB
-  * 	#define SD_CS_Pin GPIO_PIN_0
   *
   *
   * Resources Used:
@@ -104,17 +101,18 @@ static void MX_SPI1_Init(void);
 
 uint32_t value[10];  //to store the adc values
 
-FATFS fs; 			//file system
-FIL fil;  			//file
-FRESULT fresult; 	//to store the result
-char buffer[1024]; 	//to store data
+FATFS fs;  // file system
+FIL fil;  // file
+FRESULT fresult;  // to store the result
+char buffer[1024]; // to store data
 
-UINT br, bw;  		//file read/write count
+UINT br, bw;   // file read/write count
 
 /* capacity related variables */
 FATFS *pfs;
 DWORD fre_clust;
 uint32_t total, free_space;
+
 
 /* to send the data to the uart */
 void send_uart (char *string)
@@ -176,6 +174,7 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+
   /* Mount SD Card */
       fresult = f_mount(&fs, "", 0);
       if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
@@ -222,6 +221,83 @@ int main(void)
           f_close(&fil);
 
           bufclear();
+
+
+          /**************** The following operation is using f_write and f_read **************************/
+
+          /* Create second file with read write access and open it */
+          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+          /* Writing text */
+          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
+
+          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
+
+          send_uart ("File2.txt created and data is written\n");
+
+          /* Close file */
+          f_close(&fil);
+
+
+
+          // clearing buffer to show that result obtained is from the file
+          bufclear();
+
+          /* Open second file to read */
+          fresult = f_open(&fil, "file2.txt", FA_READ);
+
+          /* Read data from the file
+           * Please see the function details for the arguments */
+          f_read (&fil, buffer, fil.fsize, &br);
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
+
+
+          /*********************UPDATING an existing file ***************************/
+
+          /* Open the file with write access */
+          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
+
+          /* Move to offset to the end of the file */
+          fresult = f_lseek(&fil, fil.fsize);
+
+          /* write the string to the file */
+          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
+
+          f_close (&fil);
+
+          /* Open to read the file */
+          fresult = f_open (&fil, "file2.txt", FA_READ);
+
+          /* Read string from the file */
+          f_read (&fil, buffer, fil.fsize, &br);
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
+
+
+          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
+
+          fresult = f_unlink("/file1.txt");
+          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
+
+          fresult = f_unlink("/file2.txt");
+          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
+
+          /* Unmount SDCARD */
+          fresult = f_mount(NULL, "", 1);
+          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+
+
+
+
 
 // code from previous program to initialize with user button
 //	char *msg = "Begin ADC 10 Channel w/ LED Test\r\n";
@@ -554,7 +630,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_4|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : USER_BUTTON_Pin */
   GPIO_InitStruct.Pin = USER_BUTTON_Pin;
@@ -562,12 +641,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC4 LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
+  /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
+  GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 

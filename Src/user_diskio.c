@@ -82,7 +82,7 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-    return SD_disk_initialize(pdrv);
+    return SD_disk_initialize (pdrv);
   /* USER CODE END INIT */
 }
  
@@ -96,7 +96,7 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    return SD_disk_status(pdrv);
+    return SD_disk_status (pdrv);
   /* USER CODE END STATUS */
 }
 
@@ -116,7 +116,7 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-    return SD_disk_read(pdrv, buff, sector, count);
+	return SD_disk_read(pdrv, buff, sector, count);
   /* USER CODE END READ */
 }
 
@@ -138,7 +138,7 @@ DRESULT USER_write (
 { 
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
-    return SD_disk_write(pdrv, buff, sector, count);
+	return SD_disk_write(pdrv, buff, sector, count);
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -158,7 +158,7 @@ DRESULT USER_ioctl (
 )
 {
   /* USER CODE BEGIN IOCTL */
-    return SD_disk_ioctl(pdrv, cmd, buff);
+	return SD_disk_ioctl(pdrv, cmd, buff);
   /* USER CODE END IOCTL */
 }
 #endif /* _USE_IOCTL == 1 */

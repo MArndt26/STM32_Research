@@ -9,7 +9,7 @@
 
 /* defines for the CS PIN */
 #define SD_CS_GPIO_Port GPIOB
-#define SD_CS_Pin GPIO_PIN_0
+#define SD_CS_Pin GPIO_PIN_6
 
 /* manage your SPI handler below */
 extern SPI_HandleTypeDef hspi1; 
@@ -142,7 +142,7 @@ static bool SD_RxDataBlock(BYTE *buff, UINT btr)
   /* 100ms íƒ€ì�´ë¨¸ */
   Timer1 = 10;
 
-  /* ì�‘ë‹µ ëŒ€ê¸° */		
+  /* ì�‘ë‹µ ëŒ€ê¸° */
   do 
   {    
     token = SPI_RxByte();
@@ -194,7 +194,7 @@ static bool SD_TxDataBlock(const BYTE *buff, BYTE token)
     SPI_RxByte();       /* CRC ë¬´ì‹œ */
     SPI_RxByte();
     
-    /* ë�°ì�´íŠ¸ ì�‘ë‹µ ìˆ˜ì‹  */        
+    /* ë�°ì�´íŠ¸ ì�‘ë‹µ ìˆ˜ì‹  */
     while (i <= 64) 
     {			
       resp = SPI_RxByte();
