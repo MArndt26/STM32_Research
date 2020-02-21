@@ -299,7 +299,8 @@ int main(void)
 
 
 
-// code from previous program to initialize with user button
+/* code from previous program to initialize with user button */
+
 //	char *msg = "Begin ADC 10 Channel w/ LED Test\r\n";
 //	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
 //
