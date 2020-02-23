@@ -82,7 +82,7 @@ DSTATUS USER_initialize (
 )
 {
   /* USER CODE BEGIN INIT */
-    return SD_disk_initialize (pdrv);
+	return SD_disk_initialize (pdrv);
   /* USER CODE END INIT */
 }
  
@@ -96,7 +96,7 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    return SD_disk_status (pdrv);
+	return SD_disk_status (pdrv);
   /* USER CODE END STATUS */
 }
 

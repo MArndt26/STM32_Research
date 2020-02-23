@@ -1,6 +1,5 @@
 # STM32_Research
-This Project is aimed to measure voltages from 10 ACD ports and then
-write them to a micro sd card via an SPI connection
+This Project is aimed to measure voltages from 10 ACD ports and then write them to a micro sd card via an SPI connection
 
 USART
     BAUD RATE = 115200

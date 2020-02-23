@@ -89,9 +89,9 @@ UART_HandleTypeDef huart1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_ADC_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_ADC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -169,17 +169,28 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ADC_Init();
-  MX_USART1_UART_Init();
   MX_SPI1_Init();
+  MX_USART1_UART_Init();
   MX_FATFS_Init();
+  MX_ADC_Init();
   /* USER CODE BEGIN 2 */
+
+  send_uart("Micro SD Interfacing Testing Begin\n");
+
 
   /* Mount SD Card */
       fresult = f_mount(&fs, "", 0);
       if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
       else send_uart("SD CARD mounted successfully...\n");
 
+
+//      char message[] = "Hello, World";
+//      for(;;) {
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+//			HAL_SPI_Transmit(&hspi1, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
+//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+//			HAL_Delay(10);
+//      }
 
       /*************** Card capacity details ********************/
 
@@ -195,138 +206,132 @@ int main(void)
           send_uart(buffer);
 
 
-//          /************* The following operation is using PUTS and GETS *********************/
-//
-//
-//          /* Open file to write/ create a file if it doesn't exist */
-//          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-//
-//          /* Writing text */
-//          fresult = f_puts("This data is from the First FILE\n\n", &fil);
-//
-//          /* Close file */
-//          fresult = f_close(&fil);
-//
-//          send_uart ("File1.txt created and the data is written \n");
-//
-//          /* Open file to read */
-//          fresult = f_open(&fil, "file1.txt", FA_READ);
-//
-//          /* Read string from the file */
-//          f_gets(buffer, fil.fsize, &fil);
-//
-//          send_uart(buffer);
-//
-//          /* Close file */
-//          f_close(&fil);
-//
-//          bufclear();
-//
-//
-//          /**************** The following operation is using f_write and f_read **************************/
-//
-//          /* Create second file with read write access and open it */
-//          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-//
-//          /* Writing text */
-//          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
-//
-//          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
-//
-//          send_uart ("File2.txt created and data is written\n");
-//
-//          /* Close file */
-//          f_close(&fil);
-//
-//
-//
-//          // clearing buffer to show that result obtained is from the file
-//          bufclear();
-//
-//          /* Open second file to read */
-//          fresult = f_open(&fil, "file2.txt", FA_READ);
-//
-//          /* Read data from the file
-//           * Please see the function details for the arguments */
-//          f_read (&fil, buffer, fil.fsize, &br);
-//          send_uart(buffer);
-//
-//          /* Close file */
-//          f_close(&fil);
-//
-//          bufclear();
-//
-//
-//          /*********************UPDATING an existing file ***************************/
-//
-//          /* Open the file with write access */
-//          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
-//
-//          /* Move to offset to the end of the file */
-//          fresult = f_lseek(&fil, fil.fsize);
-//
-//          /* write the string to the file */
-//          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
-//
-//          f_close (&fil);
-//
-//          /* Open to read the file */
-//          fresult = f_open (&fil, "file2.txt", FA_READ);
-//
-//          /* Read string from the file */
-//          f_read (&fil, buffer, fil.fsize, &br);
-//          send_uart(buffer);
-//
-//          /* Close file */
-//          f_close(&fil);
-//
-//          bufclear();
-//
-//
-//          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
-//
-//          fresult = f_unlink("/file1.txt");
-//          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
-//
-//          fresult = f_unlink("/file2.txt");
-//          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
-//
-//          /* Unmount SDCARD */
-//          fresult = f_mount(NULL, "", 1);
-//          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+          /************* The following operation is using PUTS and GETS *********************/
+
+
+          /* Open file to write/ create a file if it doesn't exist */
+          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+          /* Writing text */
+          fresult = f_puts("This data is from the First FILE\n\n", &fil);
+
+          /* Close file */
+          fresult = f_close(&fil);
+
+          send_uart ("File1.txt created and the data is written \n");
+
+          /* Open file to read */
+          fresult = f_open(&fil, "file1.txt", FA_READ);
+
+          /* Read string from the file */
+          f_gets(buffer, fil.fsize, &fil);
+
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
+
+
+          /**************** The following operation is using f_write and f_read **************************/
+
+          /* Create second file with read write access and open it */
+          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+          /* Writing text */
+          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
+
+          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
+
+          send_uart ("File2.txt created and data is written\n");
+
+          /* Close file */
+          f_close(&fil);
 
 
 
+          // clearing buffer to show that result obtained is from the file
+          bufclear();
+
+          /* Open second file to read */
+          fresult = f_open(&fil, "file2.txt", FA_READ);
+
+          /* Read data from the file
+           * Please see the function details for the arguments */
+          f_read (&fil, buffer, fil.fsize, &br);
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
 
 
-/* code from previous program to initialize with user button */
+          /*********************UPDATING an existing file ***************************/
 
-//	char *msg = "Begin ADC 10 Channel w/ LED Test\r\n";
-//	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
-//
-//	msg = "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n";
-//	HAL_UART_Transmit(&huart1, msg, strlen(msg), 10);
-//
-//	while (1)
-//	{
-//		HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-//		if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
-//			for (int i = 0; i < 6; i++) {
-//				//blink led 3 times to show that data collection is initialized
-//				HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-//				HAL_Delay(100);  //1000ms delay
-//			}
-//			break;
-//		}
-//		HAL_Delay(100);
-//	}
-//
-//
-//	HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
-//	//here value is the buffer, where the adc values are going to store
-//	//10 is the number of values going to store == no. of channels
-//
-//	char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * 9);
+          /* Open the file with write access */
+          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
+
+          /* Move to offset to the end of the file */
+          fresult = f_lseek(&fil, fil.fsize);
+
+          /* write the string to the file */
+          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
+
+          f_close (&fil);
+
+          /* Open to read the file */
+          fresult = f_open (&fil, "file2.txt", FA_READ);
+
+          /* Read string from the file */
+          f_read (&fil, buffer, fil.fsize, &br);
+          send_uart(buffer);
+
+          /* Close file */
+          f_close(&fil);
+
+          bufclear();
+
+
+          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
+
+          fresult = f_unlink("/file1.txt");
+          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
+
+          fresult = f_unlink("/file2.txt");
+          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
+
+          /* Unmount SDCARD */
+          fresult = f_mount(NULL, "", 1);
+          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+
+
+
+	send_uart("Begin ADC 10 Channel w/ LED Test\r\n");
+
+	send_uart("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n"); //note that these are not pin numbers
+
+	while (1)
+	{
+		HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
+		if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
+			for (int i = 0; i < 6; i++) {
+				//blink led 3 times to show that data collection is initialized
+				HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+				HAL_Delay(100);  //1000ms delay
+			}
+			break;
+		}
+		HAL_Delay(100);
+	}
+
+
+	HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
+	//here value is the buffer, where the adc values are going to store
+	//10 is the number of values going to store == no. of channels
+
+	char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * 9);
 
   /* USER CODE END 2 */
  
@@ -341,27 +346,19 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 
-////	else
-////	{
-////		HAL_GPIO_WritePin(GPIOC, LD3_GREEN_LED_Pin,GPIO_PIN_SET);
-////	}
-////
-////	HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin); //Toggle the state of pin PC9
-////	HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin); //Toggle the state of pin PC9
-//
-////	sprintf(str, "%4d", value[9]);
-////	HAL_UART_Transmit(&huart1, str, strlen(str), 10);
-//
-//	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d", value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9]);
-//	HAL_UART_Transmit(&huart1, str, strlen(str), 10);
-//
-//
-//	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
-//
-//	HAL_ADC_Stop(&hadc);
-//	HAL_ADC_Start(&hadc);
-//
-//	HAL_Delay(1000);  //1000ms delay
+	  //format all 10 dac values to be printed in one string
+	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d",
+			value[0], value[1], value[2], value[3], value[4],
+			value[5], value[6], value[7], value[8], value[9]);
+
+	send_uart(str);
+	send_uart("\r\n");
+
+	//reset adc to get new values --> todo: find if this is the correct way to do this
+	HAL_ADC_Stop(&hadc);
+	HAL_ADC_Start(&hadc);
+
+	HAL_Delay(1000);  //1000ms delay
   }
   /* USER CODE END 3 */
 }
@@ -378,12 +375,13 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -398,7 +396,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -437,7 +435,7 @@ static void MX_ADC_Init(void)
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = ENABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -542,18 +540,19 @@ static void MX_SPI1_Init(void)
   /* USER CODE END SPI1_Init 1 */
   /* SPI1 parameter configuration*/
   hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_SLAVE;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi1.Init.CRCPolynomial = 7;
   hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
   if (HAL_SPI_Init(&hspi1) != HAL_OK)
   {
     Error_Handler();
@@ -625,7 +624,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
