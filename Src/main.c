@@ -24,6 +24,10 @@
   * Push Button
   * PA0
   *
+  * LED
+  * Blue --> PC8
+  * Green -> PC9
+  *
   *
   * ADC
   * 1 --> PA1
@@ -36,6 +40,12 @@
   * 8 --> PB0
   * 9 --> PB1
   * 10 -> PC0
+  *
+  * SPI
+  * SCK --> PB3
+  * MISO -> PB4
+  * MOSI -> PB5
+  * CS  --> PB6
   *
   *
   * Questions to ponder:

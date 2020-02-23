@@ -21,11 +21,15 @@ ADC:
     9 --> PB1
     10 -> PC0
 
+LED
+    Blue --> PC8
+    Green -> PC9
+
 SCI:
-    CS    -> PB6
-    MOSI  -> PB5
-    MISO  -> PB4
     SCK   -> PB3
+    MISO  -> PB4
+    MOSI  -> PB5
+    CS    -> PB6
 
 Questions to ponder:
     - what value of Max_ss --> max sector size are needed
