@@ -194,14 +194,6 @@ int main(void)
       else send_uart("SD CARD mounted successfully...\n");
 
 
-//      char message[] = "Hello, World";
-//      for(;;) {
-//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-//			HAL_SPI_Transmit(&hspi1, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
-//			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-//			HAL_Delay(10);
-//      }
-
       /*************** Card capacity details ********************/
 
           /* Check free space */

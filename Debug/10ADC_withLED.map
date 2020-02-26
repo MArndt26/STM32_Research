@@ -2194,7 +2194,7 @@ OUTPUT(10ADC_withLED.elf elf32-littlearm)
  .debug_ranges  0x000010f0       0x30 Src\user_diskio.o
  .debug_ranges  0x00001120       0x20 startup\startup_stm32f051x8.o
 
-.debug_line     0x00000000     0x7212
+.debug_line     0x00000000     0x7210
  .debug_line    0x00000000      0x3ee Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.o
  .debug_line    0x000003ee      0x7d2 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_adc.o
  .debug_line    0x00000bc0      0x389 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_cortex.o
@@ -2210,13 +2210,13 @@ OUTPUT(10ADC_withLED.elf elf32-littlearm)
  .debug_line    0x000053cc      0x241 Middlewares\Third_Party\FatFs\src\option\ccsbcs.o
  .debug_line    0x0000560d      0x22a Src\fatfs.o
  .debug_line    0x00005837      0x51b Src\fatfs_sd.o
- .debug_line    0x00005d52      0x612 Src\main.o
- .debug_line    0x00006364      0x374 Src\stm32f0xx_hal_msp.o
- .debug_line    0x000066d8      0x231 Src\stm32f0xx_it.o
- .debug_line    0x00006909      0x3c6 Src\syscalls.o
- .debug_line    0x00006ccf      0x1e4 Src\system_stm32f0xx.o
- .debug_line    0x00006eb3      0x2dd Src\user_diskio.o
- .debug_line    0x00007190       0x82 startup\startup_stm32f051x8.o
+ .debug_line    0x00005d52      0x610 Src\main.o
+ .debug_line    0x00006362      0x374 Src\stm32f0xx_hal_msp.o
+ .debug_line    0x000066d6      0x231 Src\stm32f0xx_it.o
+ .debug_line    0x00006907      0x3c6 Src\syscalls.o
+ .debug_line    0x00006ccd      0x1e4 Src\system_stm32f0xx.o
+ .debug_line    0x00006eb1      0x2dd Src\user_diskio.o
+ .debug_line    0x0000718e       0x82 startup\startup_stm32f051x8.o
 
 .debug_str      0x00000000     0x38db
  .debug_str     0x00000000      0x6ad Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.o
