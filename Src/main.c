@@ -147,6 +147,14 @@ void bufclear (void)  // clear buffer
 	}
 }
 
+
+
+
+
+
+
+
+
 /* USER CODE END 0 */
 
 /**
@@ -186,6 +194,18 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   send_uart("Micro SD Interfacing Testing Begin\n");
+
+//  char message[] = "Hello, World";
+//
+//	while (1)
+//	{
+//
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+//		HAL_SPI_Transmit(&hspi1, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+//		HAL_Delay(10);
+//	}
+
 
 
   /* Mount SD Card */
