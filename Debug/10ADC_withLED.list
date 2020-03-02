@@ -14822,30 +14822,30 @@ static void MX_GPIO_Init(void)
  80058e4:	0028      	movs	r0, r5
   hadc.Init.DMAContinuousRequests = DISABLE;
  80058e6:	1d6b      	adds	r3, r5, #5
-  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
- 80058e8:	612e      	str	r6, [r5, #16]
+  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+ 80058e8:	616f      	str	r7, [r5, #20]
   hadc.Init.DMAContinuousRequests = DISABLE;
  80058ea:	77dc      	strb	r4, [r3, #31]
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
- 80058ec:	62ae      	str	r6, [r5, #40]	; 0x28
   hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
- 80058ee:	606c      	str	r4, [r5, #4]
+ 80058ec:	606c      	str	r4, [r5, #4]
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
- 80058f0:	60ac      	str	r4, [r5, #8]
+ 80058ee:	60ac      	str	r4, [r5, #8]
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
- 80058f2:	60ec      	str	r4, [r5, #12]
-  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
- 80058f4:	616f      	str	r7, [r5, #20]
+ 80058f0:	60ec      	str	r4, [r5, #12]
+  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+ 80058f2:	612e      	str	r6, [r5, #16]
   hadc.Init.LowPowerAutoWait = DISABLE;
- 80058f6:	762c      	strb	r4, [r5, #24]
+ 80058f4:	762c      	strb	r4, [r5, #24]
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
- 80058f8:	766c      	strb	r4, [r5, #25]
+ 80058f6:	766c      	strb	r4, [r5, #25]
   hadc.Init.ContinuousConvMode = DISABLE;
- 80058fa:	76ac      	strb	r4, [r5, #26]
+ 80058f8:	76ac      	strb	r4, [r5, #26]
   hadc.Init.DiscontinuousConvMode = DISABLE;
- 80058fc:	76ec      	strb	r4, [r5, #27]
+ 80058fa:	76ec      	strb	r4, [r5, #27]
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
- 80058fe:	622c      	str	r4, [r5, #32]
+ 80058fc:	622c      	str	r4, [r5, #32]
+  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+ 80058fe:	62ae      	str	r6, [r5, #40]	; 0x28
   if (HAL_ADC_Init(&hadc) != HAL_OK)
  8005900:	f7fb fd2e 	bl	8001360 <HAL_ADC_Init>
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
@@ -14860,10 +14860,10 @@ static void MX_GPIO_Init(void)
  800590e:	055b      	lsls	r3, r3, #21
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
  8005910:	0028      	movs	r0, r5
-  sConfig.Channel = ADC_CHANNEL_1;
- 8005912:	960d      	str	r6, [sp, #52]	; 0x34
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
- 8005914:	930f      	str	r3, [sp, #60]	; 0x3c
+ 8005912:	930f      	str	r3, [sp, #60]	; 0x3c
+  sConfig.Channel = ADC_CHANNEL_1;
+ 8005914:	960d      	str	r6, [sp, #52]	; 0x34
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
  8005916:	f7fb fead 	bl	8001674 <HAL_ADC_ConfigChannel>
   sConfig.Channel = ADC_CHANNEL_2;
@@ -14948,10 +14948,10 @@ static void MX_GPIO_Init(void)
   send_uart("Micro SD Interfacing Testing Begin\n");
  8005984:	4894      	ldr	r0, [pc, #592]	; (8005bd8 <main+0x424>)
  8005986:	f7ff febd 	bl	8005704 <send_uart>
-      fresult = f_mount(&fs, "", 0);
- 800598a:	4e94      	ldr	r6, [pc, #592]	; (8005bdc <main+0x428>)
- 800598c:	0022      	movs	r2, r4
- 800598e:	0031      	movs	r1, r6
+      fresult = f_mount(&fs, "", 1);
+ 800598a:	4f94      	ldr	r7, [pc, #592]	; (8005bdc <main+0x428>)
+ 800598c:	0032      	movs	r2, r6
+ 800598e:	0039      	movs	r1, r7
  8005990:	4893      	ldr	r0, [pc, #588]	; (8005be0 <main+0x42c>)
  8005992:	f7fe fc5f 	bl	8004254 <f_mount>
  8005996:	4b93      	ldr	r3, [pc, #588]	; (8005be4 <main+0x430>)
@@ -14968,7 +14968,7 @@ static void MX_GPIO_Init(void)
  80059a8:	4d91      	ldr	r5, [pc, #580]	; (8005bf0 <main+0x43c>)
  80059aa:	0022      	movs	r2, r4
  80059ac:	0029      	movs	r1, r5
- 80059ae:	0030      	movs	r0, r6
+ 80059ae:	0038      	movs	r0, r7
  80059b0:	f7ff fa06 	bl	8004dc0 <f_getfree>
           total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
  80059b4:	6822      	ldr	r2, [r4, #0]

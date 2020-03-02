@@ -209,7 +209,7 @@ int main(void)
 
 
   /* Mount SD Card */
-      fresult = f_mount(&fs, "", 0);
+      fresult = f_mount(&fs, "", 1);
       if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
       else send_uart("SD CARD mounted successfully...\n");
 

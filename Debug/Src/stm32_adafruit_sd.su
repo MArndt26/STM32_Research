@@ -1,0 +1,6 @@
+stm32_adafruit_sd.c:174:9:BSP_SD_Init	16	static
+stm32_adafruit_sd.c:205:9:BSP_SD_GetCardInfo	40	static
+stm32_adafruit_sd.c:235:9:BSP_SD_ReadBlocks	40	static
+stm32_adafruit_sd.c:302:9:BSP_SD_WriteBlocks	40	static
+stm32_adafruit_sd.c:366:9:BSP_SD_GetStatus	8	static
+stm32_adafruit_sd.c:402:9:BSP_SD_Erase	16	static
