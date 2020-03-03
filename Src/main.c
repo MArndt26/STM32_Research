@@ -312,9 +312,6 @@ int main(void)
 //
 //
 
-	int fileNumber = 0;
-	char name[9];
-
 	/* Mount SD Card */
 	fresult = f_mount(&fs, "", 1);
 	if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
@@ -334,9 +331,14 @@ int main(void)
 	send_uart(buffer);
 
 
+	/*************** Create File For Data Storage ********************/
+
+	int fileNumber = 0;
+	char name[9];
+
 	//check if filename exist
 	sprintf(name, "F%d.TXT", fileNumber);
-	while(f_stat(name,NULL)==FR_OK);
+	while(f_stat(name,NULL)==FR_OK)
 	{
 		fileNumber++;
 		sprintf(name, "F%d.TXT", fileNumber);
