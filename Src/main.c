@@ -193,167 +193,193 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  send_uart("Micro SD Interfacing Testing Begin\n");
 
-//  char message[] = "Hello, World";
+//  /* Mount SD Card */
+//  fresult = f_mount(&fs, "", 1);
+//  if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
+//  else send_uart("SD CARD mounted successfully...\n");
 //
-//	while (1)
-//	{
 //
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-//		HAL_SPI_Transmit(&hspi1, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
-//		HAL_Delay(10);
-//	}
+//  /*************** Card capacity details ********************/
+//
+//  /* Check free space */
+//  f_getfree("", &fre_clust, &pfs);
+//
+//  total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+//  sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
+//  send_uart(buffer);
+//  bufclear();
+//  free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+//  sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
+//  send_uart(buffer);
+//
+//
+//  /************* The following operation is using PUTS and GETS *********************/
+//
+//
+//  /* Open file to write/ create a file if it doesn't exist */
+//  fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+//
+//  /* Writing text */
+//  fresult = f_puts("This data is from the First FILE\n\n", &fil);
+//
+//  /* Close file */
+//  fresult = f_close(&fil);
+//
+//  send_uart ("File1.txt created and the data is written \n");
+//
+//  /* Open file to read */
+//  fresult = f_open(&fil, "file1.txt", FA_READ);
+//
+//  /* Read string from the file */
+//  f_gets(buffer, fil.fsize, &fil);
+//
+//  send_uart(buffer);
+//
+//  /* Close file */
+//  f_close(&fil);
+//
+//  bufclear();
+//
+//
+//  /**************** The following operation is using f_write and f_read **************************/
+//
+//  /* Create second file with read write access and open it */
+//  fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+//
+//  /* Writing text */
+//  strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
+//
+//  fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
+//
+//  send_uart ("File2.txt created and data is written\n");
+//
+//  /* Close file */
+//  f_close(&fil);
+//
+//
+//
+//  // clearing buffer to show that result obtained is from the file
+//  bufclear();
+//
+//  /* Open second file to read */
+//  fresult = f_open(&fil, "file2.txt", FA_READ);
+//
+//  /* Read data from the file
+//   * Please see the function details for the arguments */
+//  f_read (&fil, buffer, fil.fsize, &br);
+//  send_uart(buffer);
+//
+//  /* Close file */
+//  f_close(&fil);
+//
+//  bufclear();
+//
+//
+//  /*********************UPDATING an existing file ***************************/
+//
+//  /* Open the file with write access */
+//  fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
+//
+//  /* Move to offset to the end of the file */
+//  fresult = f_lseek(&fil, fil.fsize);
+//
+//  /* write the string to the file */
+//  fresult = f_puts("This is updated data and it should be in the end \n", &fil);
+//
+//  f_close (&fil);
+//
+//  /* Open to read the file */
+//  fresult = f_open (&fil, "file2.txt", FA_READ);
+//
+//  /* Read string from the file */
+//  f_read (&fil, buffer, fil.fsize, &br);
+//  send_uart(buffer);
+//
+//  /* Close file */
+//  f_close(&fil);
+//
+//  bufclear();
+//
+//
+//  /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
+//
+//  fresult = f_unlink("/file1.txt");
+//  if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
+//
+//  fresult = f_unlink("/file2.txt");
+//  if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
+//
+//
+
+	int fileNumber = 0;
+	char name[9];
+
+	/* Mount SD Card */
+	fresult = f_mount(&fs, "", 1);
+	if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
+	else send_uart("SD CARD mounted successfully...\n");
+
+	/*************** Card capacity details ********************/
+
+	/* Check free space */
+	f_getfree("", &fre_clust, &pfs);
+
+	total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+	sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
+	send_uart(buffer);
+	bufclear();
+	free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+	sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
+	send_uart(buffer);
 
 
-
-  /* Mount SD Card */
-      fresult = f_mount(&fs, "", 1);
-      if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
-      else send_uart("SD CARD mounted successfully...\n");
-
-
-      /*************** Card capacity details ********************/
-
-          /* Check free space */
-          f_getfree("", &fre_clust, &pfs);
-
-          total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-          sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
-          send_uart(buffer);
-          bufclear();
-          free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-          sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
-          send_uart(buffer);
-
-
-          /************* The following operation is using PUTS and GETS *********************/
-
-
-          /* Open file to write/ create a file if it doesn't exist */
-          fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-          /* Writing text */
-          fresult = f_puts("This data is from the First FILE\n\n", &fil);
-
-          /* Close file */
-          fresult = f_close(&fil);
-
-          send_uart ("File1.txt created and the data is written \n");
-
-          /* Open file to read */
-          fresult = f_open(&fil, "file1.txt", FA_READ);
-
-          /* Read string from the file */
-          f_gets(buffer, fil.fsize, &fil);
-
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /**************** The following operation is using f_write and f_read **************************/
-
-          /* Create second file with read write access and open it */
-          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-          /* Writing text */
-          strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
-
-          fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
-
-          send_uart ("File2.txt created and data is written\n");
-
-          /* Close file */
-          f_close(&fil);
-
-
-
-          // clearing buffer to show that result obtained is from the file
-          bufclear();
-
-          /* Open second file to read */
-          fresult = f_open(&fil, "file2.txt", FA_READ);
-
-          /* Read data from the file
-           * Please see the function details for the arguments */
-          f_read (&fil, buffer, fil.fsize, &br);
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /*********************UPDATING an existing file ***************************/
-
-          /* Open the file with write access */
-          fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
-
-          /* Move to offset to the end of the file */
-          fresult = f_lseek(&fil, fil.fsize);
-
-          /* write the string to the file */
-          fresult = f_puts("This is updated data and it should be in the end \n", &fil);
-
-          f_close (&fil);
-
-          /* Open to read the file */
-          fresult = f_open (&fil, "file2.txt", FA_READ);
-
-          /* Read string from the file */
-          f_read (&fil, buffer, fil.fsize, &br);
-          send_uart(buffer);
-
-          /* Close file */
-          f_close(&fil);
-
-          bufclear();
-
-
-          /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
-
-          fresult = f_unlink("/file1.txt");
-          if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
-
-          fresult = f_unlink("/file2.txt");
-          if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
-
-          /* Unmount SDCARD */
-          fresult = f_mount(NULL, "", 1);
-          if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
-
-
-
-	send_uart("Begin ADC 10 Channel w/ LED Test\r\n");
-
-	send_uart("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n"); //note that these are not pin numbers
-
-	while (1)
+	//check if filename exist
+	sprintf(name, "F%d.TXT", fileNumber);
+	while(f_stat(name,NULL)==FR_OK);
 	{
-		HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-		if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
-			for (int i = 0; i < 6; i++) {
-				//blink led 3 times to show that data collection is initialized
-				HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-				HAL_Delay(100);  //1000ms delay
-			}
-			break;
-		}
-		HAL_Delay(100);
+		fileNumber++;
+		sprintf(name, "F%d.TXT", fileNumber);
 	}
 
+	/* once filename is new create file */
+	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
-	HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
-	//here value is the buffer, where the adc values are going to store
-	//10 is the number of values going to store == no. of channels
+	/* Writing text */
+	fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\n", &fil);
 
-	char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * 9);
+	/* Close file */
+	fresult = f_close(&fil);
+
+	send_uart (name); //ex: File1.txt created and is ready for data to be written
+
+	send_uart (" created and header was written \n");
+
+
+  send_uart("Begin ADC 10 Channel w/ LED Test\r\n");
+
+  send_uart("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n"); //note that these are not pin numbers
+
+  //wait for user button to be pressed indicating start of data collection
+  while (1)
+  {
+	  HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
+	  if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
+		  for (int i = 0; i < 6; i++) {
+			  //blink led 3 times to show that data collection is initialized
+			  HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+			  HAL_Delay(100);  //1000ms delay
+		  }
+		  break;
+	  }
+	  HAL_Delay(100);
+  }
+
+  HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
+  //here value is the buffer, where the adc values are going to store
+  //10 is the number of values going to store == no. of channels
+
+  char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2));
 
   /* USER CODE END 2 */
  
@@ -361,27 +387,64 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  for (int i = 0; i < 10; i++)  //@todo change this to a while loop with a button to break out of data collection
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
 
-	  //format all 10 dac values to be printed in one string
-	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d",
+	//format all 10 dac values to be printed in one string
+	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
 			value[0], value[1], value[2], value[3], value[4],
 			value[5], value[6], value[7], value[8], value[9]);
 
 	send_uart(str);
-	send_uart("\r\n");
+//	send_uart("\r\n");
+
+	/* Open the file with write access */
+	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+
+	/* Move to offset to the end of the file */
+	fresult = f_lseek(&fil, fil.fsize);
+
+	/* write the string to the file */
+	fresult = f_puts(str, &fil);
+
+	f_close (&fil);
+
+
 
 	//reset adc to get new values --> todo: find if this is the correct way to do this
 	HAL_ADC_Stop(&hadc);
 	HAL_ADC_Start(&hadc);
 
-	HAL_Delay(1000);  //1000ms delay
+//	HAL_Delay(1000);  //1000ms delay
   }
+
+
+  	send_uart ("Data Collection halted.  Sending data written to serial stream\n\n");
+
+  	/* Open to read the file */
+	fresult = f_open (&fil, name, FA_READ);
+
+	/* Read string from the file */
+	while(!f_eof(&fil)) {
+		/* Read string from the file */
+		f_gets(buffer, fil.fsize, &fil);
+		send_uart(buffer);
+	}
+
+	/* Close file */
+	f_close(&fil);
+
+	bufclear();
+
+
+  /* Unmount SDCARD */
+	fresult = f_mount(NULL, "", 1);
+	if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+
   /* USER CODE END 3 */
 }
 
