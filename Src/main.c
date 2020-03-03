@@ -123,6 +123,9 @@ FATFS *pfs;
 DWORD fre_clust;
 uint32_t total, free_space;
 
+volatile int bp = 0; //number of times button has been pressed
+char str[sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2)];  //string var for sending to usart
+
 
 /* to send the data to the uart */
 void send_uart (char *string)
@@ -146,13 +149,6 @@ void bufclear (void)  // clear buffer
 		buffer[i] = '\0';
 	}
 }
-
-
-
-
-
-
-
 
 
 /* USER CODE END 0 */
@@ -194,123 +190,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 
-//  /* Mount SD Card */
-//  fresult = f_mount(&fs, "", 1);
-//  if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
-//  else send_uart("SD CARD mounted successfully...\n");
-//
-//
-//  /*************** Card capacity details ********************/
-//
-//  /* Check free space */
-//  f_getfree("", &fre_clust, &pfs);
-//
-//  total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-//  sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
-//  send_uart(buffer);
-//  bufclear();
-//  free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-//  sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
-//  send_uart(buffer);
-//
-//
-//  /************* The following operation is using PUTS and GETS *********************/
-//
-//
-//  /* Open file to write/ create a file if it doesn't exist */
-//  fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-//
-//  /* Writing text */
-//  fresult = f_puts("This data is from the First FILE\n\n", &fil);
-//
-//  /* Close file */
-//  fresult = f_close(&fil);
-//
-//  send_uart ("File1.txt created and the data is written \n");
-//
-//  /* Open file to read */
-//  fresult = f_open(&fil, "file1.txt", FA_READ);
-//
-//  /* Read string from the file */
-//  f_gets(buffer, fil.fsize, &fil);
-//
-//  send_uart(buffer);
-//
-//  /* Close file */
-//  f_close(&fil);
-//
-//  bufclear();
-//
-//
-//  /**************** The following operation is using f_write and f_read **************************/
-//
-//  /* Create second file with read write access and open it */
-//  fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-//
-//  /* Writing text */
-//  strcpy (buffer, "This is File 2 and it says Hello from controllerstech\n");
-//
-//  fresult = f_write(&fil, buffer, bufsize(buffer), &bw);
-//
-//  send_uart ("File2.txt created and data is written\n");
-//
-//  /* Close file */
-//  f_close(&fil);
-//
-//
-//
-//  // clearing buffer to show that result obtained is from the file
-//  bufclear();
-//
-//  /* Open second file to read */
-//  fresult = f_open(&fil, "file2.txt", FA_READ);
-//
-//  /* Read data from the file
-//   * Please see the function details for the arguments */
-//  f_read (&fil, buffer, fil.fsize, &br);
-//  send_uart(buffer);
-//
-//  /* Close file */
-//  f_close(&fil);
-//
-//  bufclear();
-//
-//
-//  /*********************UPDATING an existing file ***************************/
-//
-//  /* Open the file with write access */
-//  fresult = f_open(&fil, "file2.txt", FA_OPEN_ALWAYS | FA_WRITE);
-//
-//  /* Move to offset to the end of the file */
-//  fresult = f_lseek(&fil, fil.fsize);
-//
-//  /* write the string to the file */
-//  fresult = f_puts("This is updated data and it should be in the end \n", &fil);
-//
-//  f_close (&fil);
-//
-//  /* Open to read the file */
-//  fresult = f_open (&fil, "file2.txt", FA_READ);
-//
-//  /* Read string from the file */
-//  f_read (&fil, buffer, fil.fsize, &br);
-//  send_uart(buffer);
-//
-//  /* Close file */
-//  f_close(&fil);
-//
-//  bufclear();
-//
-//
-//  /*************************REMOVING FILES FROM THE DIRECTORY ****************************/
-//
-//  fresult = f_unlink("/file1.txt");
-//  if (fresult == FR_OK) send_uart("file1.txt removed successfully...\n");
-//
-//  fresult = f_unlink("/file2.txt");
-//  if (fresult == FR_OK) send_uart("file2.txt removed successfully...\n");
-//
-//
+  	send_uart("Begin 10 Chan ADC to Micro SD\n");
 
 	/* Mount SD Card */
 	fresult = f_mount(&fs, "", 1);
@@ -358,30 +238,23 @@ int main(void)
 	send_uart (" created and header was written \n");
 
 
-  send_uart("Begin ADC 10 Channel w/ LED Test\r\n");
-
-  send_uart("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\r\n"); //note that these are not pin numbers
-
-  //wait for user button to be pressed indicating start of data collection
-  while (1)
+  /* Wait for User Button Press to Begin Data Collection */
+  while (bp == 0)
   {
 	  HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-	  if (HAL_GPIO_ReadPin(GPIOA, USER_BUTTON_Pin) == GPIO_PIN_SET) {
-		  for (int i = 0; i < 6; i++) {
-			  //blink led 3 times to show that data collection is initialized
-			  HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-			  HAL_Delay(100);  //1000ms delay
-		  }
-		  break;
-	  }
+
 	  HAL_Delay(100);
+  }
+
+  //blink led 3 times to show that data collection is initialized
+  for (int i = 0; i < 6; i++) {
+		  HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+		  HAL_Delay(100);  //1000ms delay
   }
 
   HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
   //here value is the buffer, where the adc values are going to store
   //10 is the number of values going to store == no. of channels
-
-  char *str = malloc(sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2));
 
   /* USER CODE END 2 */
  
@@ -389,12 +262,18 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  for (int i = 0; i < 10; i++)  //@todo change this to a while loop with a button to break out of data collection
+  while(1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
+	  sprintf(str, "%d\n", bp);
+	  send_uart(str);
+
+	  if(bp > 1) {
+		  break;
+	  }
 
 	//format all 10 dac values to be printed in one string
 	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
@@ -402,7 +281,7 @@ int main(void)
 			value[5], value[6], value[7], value[8], value[9]);
 
 	send_uart(str);
-//	send_uart("\r\n");
+	//	send_uart("\r\n");
 
 	/* Open the file with write access */
 	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
@@ -413,6 +292,7 @@ int main(void)
 	/* write the string to the file */
 	fresult = f_puts(str, &fil);
 
+	/* close file */
 	f_close (&fil);
 
 
@@ -421,11 +301,12 @@ int main(void)
 	HAL_ADC_Stop(&hadc);
 	HAL_ADC_Start(&hadc);
 
-//	HAL_Delay(1000);  //1000ms delay
+	HAL_Delay(1000);  //1000ms delay
+
   }
 
 
-  	send_uart ("Data Collection halted.  Sending data written to serial stream\n\n");
+  	send_uart ("Data Collection Halted.  Sending data written to serial stream\n\n");
 
   	/* Open to read the file */
 	fresult = f_open (&fil, name, FA_READ);
@@ -721,11 +602,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : USER_BUTTON_Pin */
-  GPIO_InitStruct.Pin = USER_BUTTON_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pin : PA0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USER_BUTTON_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
   GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
@@ -740,6 +621,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 }
 
