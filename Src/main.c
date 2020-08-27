@@ -109,47 +109,46 @@ static void MX_ADC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t value[10];  //to store the adc values
+uint32_t value[10]; //to store the adc values
 
-FATFS fs;  // file system
-FIL fil;  // file
-FRESULT fresult;  // to store the result
+FATFS fs;          // file system
+FIL fil;           // file
+FRESULT fresult;   // to store the result
 char buffer[1024]; // to store data
 
-UINT br, bw;   // file read/write count
+UINT br, bw; // file read/write count
 
 /* capacity related variables */
 FATFS *pfs;
 DWORD fre_clust;
 uint32_t total, free_space;
 
-volatile int bp = 0; //number of times button has been pressed
-char str[sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2)];  //string var for sending to usart
-
+volatile int bp = 0;                                      //number of times button has been pressed
+char str[sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2)]; //string var for sending to usart
 
 /* to send the data to the uart */
-void send_uart (char *string)
+void send_uart(char *string)
 {
-	uint8_t len = strlen (string);
-	HAL_UART_Transmit(&huart1, (uint8_t *) string, len, 2000);  // transmit in blocking mode
+  uint8_t len = strlen(string);
+  HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
 }
 
 /* to find the size of data in the buffer */
-int bufsize (char *buf)
+int bufsize(char *buf)
 {
-	int i=0;
-	while (*buf++ != '\0') i++;
-	return i;
+  int i = 0;
+  while (*buf++ != '\0')
+    i++;
+  return i;
 }
 
-void bufclear (void)  // clear buffer
+void bufclear(void) // clear buffer
 {
-	for (int i=0; i<1024; i++)
-	{
-		buffer[i] = '\0';
-	}
+  for (int i = 0; i < 1024; i++)
+  {
+    buffer[i] = '\0';
+  }
 }
-
 
 /* USER CODE END 0 */
 
@@ -162,7 +161,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -189,144 +187,140 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
+  send_uart("Begin 10 Chan ADC to Micro SD\n");
 
-  	send_uart("Begin 10 Chan ADC to Micro SD\n");
+  /* Mount SD Card */
+  fresult = f_mount(&fs, "", 1);
+  if (fresult != FR_OK)
+    send_uart("error in mounting SD CARD...\n");
+  else
+    send_uart("SD CARD mounted successfully...\n");
 
-	/* Mount SD Card */
-	fresult = f_mount(&fs, "", 1);
-	if (fresult != FR_OK) send_uart ("error in mounting SD CARD...\n");
-	else send_uart("SD CARD mounted successfully...\n");
+  /*************** Card capacity details ********************/
 
-	/*************** Card capacity details ********************/
+  /* Check free space */
+  f_getfree("", &fre_clust, &pfs);
 
-	/* Check free space */
-	f_getfree("", &fre_clust, &pfs);
+  total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+  sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
+  send_uart(buffer);
+  bufclear();
+  free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+  sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
+  send_uart(buffer);
 
-	total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-	sprintf (buffer, "SD CARD Total Size: \t%lu\n",total);
-	send_uart(buffer);
-	bufclear();
-	free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-	sprintf (buffer, "SD CARD Free Space: \t%lu\n",free_space);
-	send_uart(buffer);
+  /*************** Create File For Data Storage ********************/
 
+  int fileNumber = 0;
+  char name[9];
 
-	/*************** Create File For Data Storage ********************/
+  //check if filename exist
+  sprintf(name, "F%d.TXT", fileNumber);
+  while (f_stat(name, NULL) == FR_OK)
+  {
+    fileNumber++;
+    sprintf(name, "F%d.TXT", fileNumber);
+  }
 
-	int fileNumber = 0;
-	char name[9];
+  /* once filename is new create file */
+  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
-	//check if filename exist
-	sprintf(name, "F%d.TXT", fileNumber);
-	while(f_stat(name,NULL)==FR_OK)
-	{
-		fileNumber++;
-		sprintf(name, "F%d.TXT", fileNumber);
-	}
+  /* Writing text */
+  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\n", &fil);
 
-	/* once filename is new create file */
-	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+  /* Close file */
+  fresult = f_close(&fil);
 
-	/* Writing text */
-	fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\n", &fil);
+  send_uart(name); //ex: File1.txt created and is ready for data to be written
 
-	/* Close file */
-	fresult = f_close(&fil);
-
-	send_uart (name); //ex: File1.txt created and is ready for data to be written
-
-	send_uart (" created and header was written \n");
-
+  send_uart(" created and header was written \n");
 
   /* Wait for User Button Press to Begin Data Collection */
   while (bp == 0)
   {
-	  HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
+    HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
 
-	  HAL_Delay(100);
+    HAL_Delay(100);
   }
 
   //blink led 3 times to show that data collection is initialized
-  for (int i = 0; i < 6; i++) {
-		  HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-		  HAL_Delay(100);  //1000ms delay
+  for (int i = 0; i < 6; i++)
+  {
+    HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+    HAL_Delay(100); //1000ms delay
   }
 
-  HAL_ADC_Start_DMA(&hadc, value, 10);  //start the adc in dma mode
+  HAL_ADC_Start_DMA(&hadc, value, 10); //start the adc in dma mode
   //here value is the buffer, where the adc values are going to store
   //10 is the number of values going to store == no. of channels
 
   /* USER CODE END 2 */
- 
- 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while(1)
+  while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	  sprintf(str, "%d\n", bp);
-	  send_uart(str);
+    sprintf(str, "%d\n", bp);
+    send_uart(str);
 
-	  if(bp > 1) {
-		  break;
-	  }
+    if (bp > 1)
+    {
+      break;
+    }
 
-	//format all 10 dac values to be printed in one string
-	sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
-			value[0], value[1], value[2], value[3], value[4],
-			value[5], value[6], value[7], value[8], value[9]);
+    //format all 10 dac values to be printed in one string
+    sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
+            value[0], value[1], value[2], value[3], value[4],
+            value[5], value[6], value[7], value[8], value[9]);
 
-	send_uart(str);
-	//	send_uart("\r\n");
+    send_uart(str);
+    //	send_uart("\r\n");
 
-	/* Open the file with write access */
-	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+    /* Open the file with write access */
+    fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
-	/* Move to offset to the end of the file */
-	fresult = f_lseek(&fil, fil.fsize);
+    /* Move to offset to the end of the file */
+    fresult = f_lseek(&fil, fil.fsize);
 
-	/* write the string to the file */
-	fresult = f_puts(str, &fil);
+    /* write the string to the file */
+    fresult = f_puts(str, &fil);
 
-	/* close file */
-	f_close (&fil);
+    /* close file */
+    f_close(&fil);
 
+    //reset adc to get new values --> todo: find if this is the correct way to do this
+    HAL_ADC_Stop(&hadc);
+    HAL_ADC_Start(&hadc);
 
-
-	//reset adc to get new values --> todo: find if this is the correct way to do this
-	HAL_ADC_Stop(&hadc);
-	HAL_ADC_Start(&hadc);
-
-	HAL_Delay(1000);  //1000ms delay
-
+    HAL_Delay(1000); //1000ms delay
   }
 
+  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
 
-  	send_uart ("Data Collection Halted.  Sending data written to serial stream\n\n");
+  /* Open to read the file */
+  fresult = f_open(&fil, name, FA_READ);
 
-  	/* Open to read the file */
-	fresult = f_open (&fil, name, FA_READ);
+  /* Read string from the file */
+  while (!f_eof(&fil))
+  {
+    /* Read string from the file */
+    f_gets(buffer, fil.fsize, &fil);
+    send_uart(buffer);
+  }
 
-	/* Read string from the file */
-	while(!f_eof(&fil)) {
-		/* Read string from the file */
-		f_gets(buffer, fil.fsize, &fil);
-		send_uart(buffer);
-	}
+  /* Close file */
+  f_close(&fil);
 
-	/* Close file */
-	f_close(&fil);
-
-	bufclear();
-
+  bufclear();
 
   /* Unmount SDCARD */
-	fresult = f_mount(NULL, "", 1);
-	if (fresult == FR_OK) send_uart ("SD CARD UNMOUNTED successfully...\n");
+  fresult = f_mount(NULL, "", 1);
+  if (fresult == FR_OK)
+    send_uart("SD CARD UNMOUNTED successfully...\n");
 
   /* USER CODE END 3 */
 }
@@ -343,7 +337,7 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI | RCC_OSCILLATORTYPE_HSI14;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -358,8 +352,7 @@ void SystemClock_Config(void)
   }
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
@@ -488,7 +481,6 @@ static void MX_ADC_Init(void)
   /* USER CODE BEGIN ADC_Init 2 */
 
   /* USER CODE END ADC_Init 2 */
-
 }
 
 /**
@@ -528,7 +520,6 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
-
 }
 
 /**
@@ -563,13 +554,12 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
-
 }
 
 /** 
   * Enable DMA controller clock
   */
-static void MX_DMA_Init(void) 
+static void MX_DMA_Init(void)
 {
 
   /* DMA controller clock enable */
@@ -579,7 +569,6 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-
 }
 
 /**
@@ -597,7 +586,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LD4_BLUE_LED_Pin | LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
@@ -609,7 +598,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
-  GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
+  GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin | LD3_GREEN_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -625,7 +614,6 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
-
 }
 
 /* USER CODE BEGIN 4 */
@@ -644,7 +632,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -653,7 +641,7 @@ void Error_Handler(void)
   * @retval None
   */
 void assert_failed(char *file, uint32_t line)
-{ 
+{
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
