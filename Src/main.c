@@ -269,6 +269,12 @@ int main(void)
 
     if (bp > 1)
     {
+      //blink green led 2 times to show data collection halted
+      for (int i = 0; i < 4; i++)
+	  {
+		HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
+		HAL_Delay(100); //1000ms delay
+	  }
       break;
     }
 
@@ -582,11 +588,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PB0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pin : BUTTON_PIN_Pin */
+  GPIO_InitStruct.Pin = BUTTON_PIN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(BUTTON_PIN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
   GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
@@ -609,7 +615,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+/**
+  * @brief EXTI line detection callbacks
+  * @param GPIO_Pin: Specifies the pins connected EXTI line
+  * @retval None
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    /* Toggle LED1 */
+    bp++;
+}
 /* USER CODE END 4 */
 
 /**
