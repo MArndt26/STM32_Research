@@ -66,6 +66,15 @@ void Error_Handler(void);
 #define LD3_GREEN_LED_Pin GPIO_PIN_9
 #define LD3_GREEN_LED_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
+#define START_MSG "Begin 8 Chan ADC to Micro SD"
+#define SD_CARD_MOUNT_ERROR_MSG "error in mounting SD CARD..."
+#define SD_CARD_MOUNT_SUCCESS_MSG "SD CARD mounted successfully..."
+#define SD_CARD_TOTAL_SIZE_MSG "SD CARD Total Size: \t"
+#define SD_CARD_FREE_SPACE_MSG "SD CARD Free Space: \t"
+#define ADC_HEADER "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7"
+#define FILE_CREATION_MSG_PARTIAL " created and header was written"
+#define DATA_COLLECTION_HALTED_MSG "Data Collection Halted.  Sending data written to serial stream\n"
+#define SD_CARD_UNMOUNT_SUCCESS_MSG "SD CARD UNMOUNTED successfully..."
 
 /* USER CODE END Private defines */
 

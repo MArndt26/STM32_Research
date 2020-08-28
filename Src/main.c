@@ -30,16 +30,14 @@
   *
   *
   * ADC
-  * 1 --> PA1
-  * 2 --> PA2
-  * 3 --> PA3
-  * 4 --> PA4
-  * 5 --> PA5
-  * 6 --> PA6
-  * 7 --> PA7
-  * 8 --> PB0
-  * 9 --> PB1
-  * 10 -> PC0
+  * 1 --> PA0
+  * 2 --> PA1
+  * 3 --> PA2
+  * 4 --> PA3
+  * 5 --> PA4
+  * 6 --> PA5
+  * 7 --> PA6
+  * 8 --> PA7
   *
   * SPI
   * SCK --> PB3
@@ -67,6 +65,7 @@
 /* USER CODE BEGIN Includes */
 #include <fatfs_sd.h>
 #include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -133,6 +132,12 @@ void send_uart(char *string)
   HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
 }
 
+void send_uart_ln(char *string)
+{
+	send_uart(string);
+	HAL_UART_Transmit(&huart1, (uint8_t *) "\n", 1, 1000); // send newline
+}
+
 /* to find the size of data in the buffer */
 int bufsize(char *buf)
 {
@@ -187,14 +192,14 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  send_uart("Begin 8 Chan ADC to Micro SD\n");
+  send_uart_ln(START_MSG);
 
   /* Mount SD Card */
   fresult = f_mount(&fs, "", 1);
   if (fresult != FR_OK)
-    send_uart("error in mounting SD CARD...\n");
+    send_uart_ln(SD_CARD_MOUNT_ERROR_MSG);
   else
-    send_uart("SD CARD mounted successfully...\n");
+    send_uart_ln(SD_CARD_MOUNT_SUCCESS_MSG);
 
   /*************** Card capacity details ********************/
 
@@ -202,12 +207,12 @@ int main(void)
   f_getfree("", &fre_clust, &pfs);
 
   total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
-  send_uart(buffer);
+  sprintf(buffer, "%s%lu", SD_CARD_TOTAL_SIZE_MSG, (unsigned long) total);
+  send_uart_ln(buffer);
   bufclear();
   free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
-  send_uart(buffer);
+  sprintf(buffer, "%s%lu", SD_CARD_FREE_SPACE_MSG, (unsigned long) free_space);
+  send_uart_ln(buffer);
 
   /*************** Create File For Data Storage ********************/
 
@@ -226,14 +231,14 @@ int main(void)
   fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
   /* Writing text */
-  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7\n", &fil);
+  fresult = f_puts(ADC_HEADER, &fil);
 
   /* Close file */
   fresult = f_close(&fil);
 
   send_uart(name); //ex: File1.txt created and is ready for data to be written
 
-  send_uart(" created and header was written \n");
+  send_uart_ln(FILE_CREATION_MSG_PARTIAL);
 
   /* Wait for User Button Press to Begin Data Collection */
   while (bp == 0)
@@ -305,7 +310,7 @@ int main(void)
     HAL_Delay(1000); //1000ms delay
   }
 
-  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
+  send_uart_ln(DATA_COLLECTION_HALTED_MSG);
 
   /* Open to read the file */
   fresult = f_open(&fil, name, FA_READ);
@@ -326,7 +331,7 @@ int main(void)
   /* Unmount SDCARD */
   fresult = f_mount(NULL, "", 1);
   if (fresult == FR_OK)
-    send_uart("SD CARD UNMOUNTED successfully...\n");
+    send_uart_ln(SD_CARD_UNMOUNT_SUCCESS_MSG);
 
   /* USER CODE END 3 */
 }
