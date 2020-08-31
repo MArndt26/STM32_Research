@@ -267,7 +267,9 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
-    HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
+	if (adc_flag == 0) {
+		HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
+	}
 
 //    sprintf(str, "%d\n", bp);
 //    send_uart(str);  //used for debugging button press
@@ -282,9 +284,10 @@ int main(void)
 	  }
       break;
     }
+
     else if (adc_flag == 1)
     {
-    	send_uart("t");
+    	adc_flag = 0; //clear adc_flag
 
 		//format all 10 dac values to be printed in one string
 		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
