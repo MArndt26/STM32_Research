@@ -109,8 +109,10 @@ static void MX_ADC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t adc_buf[8]; //working buffer for the adc values
-uint32_t adc[8]; //to current buffer for the adc values
+#define ADC_NUM_CHANNELS 12
+
+uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
+uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
 int adc_flag = 0;
 
 FATFS fs;          // file system
@@ -126,7 +128,7 @@ DWORD fre_clust;
 uint32_t total, free_space;
 
 volatile int bp = 0;                                      //number of times button has been pressed
-char str[sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2)]; //string var for sending to usart
+char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * (9 + 2)]; //string var for sending to usart
 
 /* to send the data to the uart */
 void send_uart(char *string)
@@ -268,7 +270,7 @@ int main(void)
 
 	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
 	if (adc_flag == 0) {
-		HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
+		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
 	}
 
 //    sprintf(str, "%d\n", bp);
@@ -290,9 +292,10 @@ int main(void)
     	adc_flag = 0; //clear adc_flag
 
 		//format all 10 dac values to be printed in one string
-		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
+		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
 				adc[0], adc[1], adc[2], adc[3], adc[4],
-				adc[5], adc[6], adc[7]);
+				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
+
 
 		send_uart(str);
 		//	send_uart("\r\n");
@@ -479,6 +482,34 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN ADC_Init 2 */
 
   /* USER CODE END ADC_Init 2 */
@@ -636,7 +667,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	for (int i =0; i<8; i++)
+	for (int i =0; i < ADC_NUM_CHANNELS; i++)
 	{
 	   adc[i] = adc_buf[i];  // store the values in adc[]
 	}
