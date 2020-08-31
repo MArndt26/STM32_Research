@@ -67,6 +67,7 @@
 /* USER CODE BEGIN Includes */
 #include <fatfs_sd.h>
 #include <string.h>
+#include <inttypes.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +77,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SHOW_UART_WRITE 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -114,6 +116,8 @@ static void MX_ADC_Init(void);
 uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
 uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
 int adc_flag = 0;
+
+uint64_t line_count = 0;
 
 FATFS fs;          // file system
 FIL fil;           // file
@@ -273,9 +277,6 @@ int main(void)
 		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
 	}
 
-//    sprintf(str, "%d\n", bp);
-//    send_uart(str);  //used for debugging button press
-
     if (bp > 1)
     {
       //blink green led 2 times to show data collection halted
@@ -296,9 +297,9 @@ int main(void)
 				adc[0], adc[1], adc[2], adc[3], adc[4],
 				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
 
-
+#if SHOW_UART_WRITE
 		send_uart(str);
-		//	send_uart("\r\n");
+#endif
 
 		/* Open the file with write access */
 		fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
@@ -311,9 +312,11 @@ int main(void)
 
 		/* close file */
 		f_close(&fil);
+
+		line_count++;
     }
 
-    HAL_Delay(1); //1ms delay
+//    HAL_Delay(1); //1ms delay
   }
 
   send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
@@ -338,6 +341,10 @@ int main(void)
   fresult = f_mount(NULL, "", 1);
   if (fresult == FR_OK)
     send_uart("SD CARD UNMOUNTED successfully...\n");
+
+  sprintf(str, "line count: %d\n", line_count);
+
+  send_uart(str);
 
   /* USER CODE END 3 */
 }
@@ -622,7 +629,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
@@ -633,8 +640,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
-  GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
+  /*Configure GPIO pins : SEL_Pin LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
+  GPIO_InitStruct.Pin = SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -667,6 +674,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
+	SEL_GPIO_Port -> ODR ^= SEL_Pin; //toggle SEL pin
+
 	for (int i =0; i < ADC_NUM_CHANNELS; i++)
 	{
 	   adc[i] = adc_buf[i];  // store the values in adc[]
