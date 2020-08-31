@@ -111,7 +111,7 @@ static void MX_ADC_Init(void);
 
 uint32_t adc_buf[8]; //working buffer for the adc values
 uint32_t adc[8]; //to current buffer for the adc values
-char adc_flag = 0;
+int adc_flag = 0;
 
 FATFS fs;          // file system
 FIL fil;           // file
@@ -252,9 +252,9 @@ int main(void)
     HAL_Delay(100); //1000ms delay
   }
 
-  HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
-  //here value is the buffer, where the adc values are going to store
-  //10 is the number of values going to store == no. of channels
+  // Calibrate The ADC On Power-Up For Better Accuracy
+  HAL_ADCEx_Calibration_Start(&hadc);
+
 
   /* USER CODE END 2 */
 
@@ -265,6 +265,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
+    HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
 
 //    sprintf(str, "%d\n", bp);
 //    send_uart(str);  //used for debugging button press
@@ -281,7 +284,7 @@ int main(void)
     }
     else if (adc_flag == 1)
     {
-    	adc_flag = 0;
+    	send_uart("t");
 
 		//format all 10 dac values to be printed in one string
 		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
@@ -304,7 +307,7 @@ int main(void)
 		f_close(&fil);
     }
 
-    HAL_Delay(1000); //1000ms delay
+    HAL_Delay(1); //1ms delay
   }
 
   send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
@@ -345,9 +348,11 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
@@ -396,18 +401,18 @@ static void MX_ADC_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = ENABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = ENABLE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   if (HAL_ADC_Init(&hadc) != HAL_OK)
   {
