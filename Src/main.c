@@ -109,7 +109,9 @@ static void MX_ADC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t value[8]; //to store the adc values
+uint32_t adc_buf[8]; //working buffer for the adc values
+uint32_t adc[8]; //to current buffer for the adc values
+char adc_flag = 0;
 
 FATFS fs;          // file system
 FIL fil;           // file
@@ -250,7 +252,7 @@ int main(void)
     HAL_Delay(100); //1000ms delay
   }
 
-  HAL_ADC_Start_DMA(&hadc, value, 8); //start the adc in dma mode
+  HAL_ADC_Start_DMA(&hadc, adc_buf, 8); //start the adc in dma mode
   //here value is the buffer, where the adc values are going to store
   //10 is the number of values going to store == no. of channels
 
@@ -277,30 +279,30 @@ int main(void)
 	  }
       break;
     }
+    else if (adc_flag == 1)
+    {
+    	adc_flag = 0;
 
-    //format all 10 dac values to be printed in one string
-    sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
-            value[0], value[1], value[2], value[3], value[4],
-            value[5], value[6], value[7]);
+		//format all 10 dac values to be printed in one string
+		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
+				adc[0], adc[1], adc[2], adc[3], adc[4],
+				adc[5], adc[6], adc[7]);
 
-    send_uart(str);
-    //	send_uart("\r\n");
+		send_uart(str);
+		//	send_uart("\r\n");
 
-    /* Open the file with write access */
-    fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+		/* Open the file with write access */
+		fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
-    /* Move to offset to the end of the file */
-    fresult = f_lseek(&fil, fil.fsize);
+		/* Move to offset to the end of the file */
+		fresult = f_lseek(&fil, fil.fsize);
 
-    /* write the string to the file */
-    fresult = f_puts(str, &fil);
+		/* write the string to the file */
+		fresult = f_puts(str, &fil);
 
-    /* close file */
-    f_close(&fil);
-
-    //reset adc to get new values --> todo: find if this is the correct way to do this
-    HAL_ADC_Stop(&hadc);
-    HAL_ADC_Start(&hadc);
+		/* close file */
+		f_close(&fil);
+    }
 
     HAL_Delay(1000); //1000ms delay
   }
@@ -343,11 +345,9 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
@@ -396,18 +396,18 @@ static void MX_ADC_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.ContinuousConvMode = ENABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.DMAContinuousRequests = ENABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   if (HAL_ADC_Init(&hadc) != HAL_OK)
   {
@@ -624,6 +624,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     /* Toggle LED1 */
     bp++;
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	for (int i =0; i<8; i++)
+	{
+	   adc[i] = adc_buf[i];  // store the values in adc[]
+	}
+	adc_flag = 1;
 }
 /* USER CODE END 4 */
 

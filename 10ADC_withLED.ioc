@@ -1,4 +1,8 @@
 #MicroXplorer Configuration settings - do not modify
+ADC.ClockPrescaler=ADC_CLOCK_SYNC_PCLK_DIV4
+ADC.ContinuousConvMode=ENABLE
+ADC.DMAContinuousRequests=ENABLE
+ADC.IPParameters=ClockPrescaler,ContinuousConvMode,DMAContinuousRequests
 Dma.ADC.0.Direction=DMA_PERIPH_TO_MEMORY
 Dma.ADC.0.Instance=DMA1_Channel1
 Dma.ADC.0.MemDataAlignment=DMA_MDATAALIGN_WORD
@@ -108,7 +112,7 @@ PC9.GPIO_Label=LD3_GREEN_LED
 PC9.Locked=true
 PC9.Signal=GPIO_Output
 PinOutPanel.RotationAngle=0
-ProjectManager.AskForMigrate=true
+ProjectManager.AskForMigrate=false
 ProjectManager.BackupPrevious=false
 ProjectManager.CompilerOptimize=6
 ProjectManager.ComputerToolchain=false
