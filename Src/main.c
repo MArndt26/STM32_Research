@@ -119,6 +119,8 @@ int adc_flag = 0;
 
 uint64_t line_count = 0;
 
+char RxData = '\0';
+
 FATFS fs;          // file system
 FIL fil;           // file
 FRESULT fresult;   // to store the result
@@ -195,6 +197,8 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+
   send_uart("Begin 8 Chan ADC to Micro SD\n");
 
   /* Mount SD Card */
@@ -234,7 +238,7 @@ int main(void)
   fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
   /* Writing text */
-  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7\n", &fil);
+  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
 
   /* Close file */
   fresult = f_close(&fil);
@@ -681,6 +685,13 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	   adc[i] = adc_buf[i];  // store the values in adc[]
 	}
 	adc_flag = 1;
+}
+
+void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
+{
+	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
+    send_uart("\n");
+    HAL_UART_Receive_IT( &huart1, &RxData, 1 );
 }
 /* USER CODE END 4 */
 
