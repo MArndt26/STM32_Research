@@ -1,9 +1,9 @@
 main.c:140:6:send_uart	8	static
 main.c:147:5:bufsize	0	static
 main.c:155:6:bufclear	8	static
-main.c:360:6:SystemClock_Config	104	static
+main.c:363:6:SystemClock_Config	104	static
 main.c:169:5:main	104	static
-main.c:673:6:HAL_GPIO_EXTI_Callback	0	static
-main.c:679:6:HAL_ADC_ConvCpltCallback	0	static
-main.c:690:6:HAL_UART_RxCpltCallback	16	static
-main.c:702:6:Error_Handler	0	static
+main.c:676:6:HAL_GPIO_EXTI_Callback	0	static
+main.c:682:6:HAL_ADC_ConvCpltCallback	0	static
+main.c:693:6:HAL_UART_RxCpltCallback	16	static
+main.c:705:6:Error_Handler	0	static

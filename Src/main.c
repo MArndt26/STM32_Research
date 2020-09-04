@@ -266,6 +266,10 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc);
 
 
+  /* Open the file with write access */
+  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -305,17 +309,13 @@ int main(void)
 		send_uart(str);
 #endif
 
-		/* Open the file with write access */
-		fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
-		/* Move to offset to the end of the file */
-		fresult = f_lseek(&fil, fil.fsize);
+//		/* Move to offset to the end of the file */
+//		fresult = f_lseek(&fil, fil.fsize);
 
 		/* write the string to the file */
 		fresult = f_puts(str, &fil);
 
-		/* close file */
-		f_close(&fil);
 
 		line_count++;
     }
@@ -323,21 +323,24 @@ int main(void)
 //    HAL_Delay(1); //1ms delay
   }
 
+	/* close file */
+	f_close(&fil);
+
   send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
 
-  /* Open to read the file */
-  fresult = f_open(&fil, name, FA_READ);
-
-  /* Read string from the file */
-  while (!f_eof(&fil))
-  {
-    /* Read string from the file */
-    f_gets(buffer, fil.fsize, &fil);
-    send_uart(buffer);
-  }
-
-  /* Close file */
-  f_close(&fil);
+//  /* Open to read the file */
+//  fresult = f_open(&fil, name, FA_READ);
+//
+//  /* Read string from the file */
+//  while (!f_eof(&fil))
+//  {
+//    /* Read string from the file */
+//    f_gets(buffer, fil.fsize, &fil);
+//    send_uart(buffer);
+//  }
+//
+//  /* Close file */
+//  f_close(&fil);
 
   bufclear();
 
