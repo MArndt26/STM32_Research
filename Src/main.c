@@ -30,14 +30,16 @@
   *
   *
   * ADC
-  * 1 --> PA0
-  * 2 --> PA1
-  * 3 --> PA2
-  * 4 --> PA3
-  * 5 --> PA4
-  * 6 --> PA5
-  * 7 --> PA6
-  * 8 --> PA7
+  * 1 --> PA1
+  * 2 --> PA2
+  * 3 --> PA3
+  * 4 --> PA4
+  * 5 --> PA5
+  * 6 --> PA6
+  * 7 --> PA7
+  * 8 --> PB0
+  * 9 --> PB1
+  * 10 -> PC0
   *
   * SPI
   * SCK --> PB3
@@ -65,7 +67,7 @@
 /* USER CODE BEGIN Includes */
 #include <fatfs_sd.h>
 #include <string.h>
-#include <stdio.h>
+#include <inttypes.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -75,6 +77,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define SHOW_UART_WRITE 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -108,7 +111,15 @@ static void MX_ADC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint32_t value[8]; //to store the adc values
+#define ADC_NUM_CHANNELS 12
+
+uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
+uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
+int adc_flag = 0;
+
+uint64_t line_count = 0;
+
+char RxData = '\0';
 
 FATFS fs;          // file system
 FIL fil;           // file
@@ -123,19 +134,13 @@ DWORD fre_clust;
 uint32_t total, free_space;
 
 volatile int bp = 0;                                      //number of times button has been pressed
-char str[sizeof(uint32_t) * 10 + sizeof(char) * (9 + 2)]; //string var for sending to usart
+char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * (9 + 2)]; //string var for sending to usart
 
 /* to send the data to the uart */
 void send_uart(char *string)
 {
   uint8_t len = strlen(string);
   HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
-}
-
-void send_uart_ln(char *string)
-{
-	send_uart(string);
-	HAL_UART_Transmit(&huart1, (uint8_t *) "\n", 1, 1000); // send newline
 }
 
 /* to find the size of data in the buffer */
@@ -192,14 +197,16 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  send_uart_ln(START_MSG);
+  HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+
+  send_uart("Begin 8 Chan ADC to Micro SD\n");
 
   /* Mount SD Card */
   fresult = f_mount(&fs, "", 1);
   if (fresult != FR_OK)
-    send_uart_ln(SD_CARD_MOUNT_ERROR_MSG);
+    send_uart("error in mounting SD CARD...\n");
   else
-    send_uart_ln(SD_CARD_MOUNT_SUCCESS_MSG);
+    send_uart("SD CARD mounted successfully...\n");
 
   /*************** Card capacity details ********************/
 
@@ -207,12 +214,12 @@ int main(void)
   f_getfree("", &fre_clust, &pfs);
 
   total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-  sprintf(buffer, "%s%lu", SD_CARD_TOTAL_SIZE_MSG, (unsigned long) total);
-  send_uart_ln(buffer);
+  sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
+  send_uart(buffer);
   bufclear();
   free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-  sprintf(buffer, "%s%lu", SD_CARD_FREE_SPACE_MSG, (unsigned long) free_space);
-  send_uart_ln(buffer);
+  sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
+  send_uart(buffer);
 
   /*************** Create File For Data Storage ********************/
 
@@ -231,14 +238,14 @@ int main(void)
   fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
   /* Writing text */
-  fresult = f_puts(ADC_HEADER, &fil);
+  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
 
   /* Close file */
   fresult = f_close(&fil);
 
   send_uart(name); //ex: File1.txt created and is ready for data to be written
 
-  send_uart_ln(FILE_CREATION_MSG_PARTIAL);
+  send_uart(" created and header was written \n");
 
   /* Wait for User Button Press to Begin Data Collection */
   while (bp == 0)
@@ -255,9 +262,9 @@ int main(void)
     HAL_Delay(100); //1000ms delay
   }
 
-  HAL_ADC_Start_DMA(&hadc, value, 8); //start the adc in dma mode
-  //here value is the buffer, where the adc values are going to store
-  //10 is the number of values going to store == no. of channels
+  // Calibrate The ADC On Power-Up For Better Accuracy
+  HAL_ADCEx_Calibration_Start(&hadc);
+
 
   /* USER CODE END 2 */
 
@@ -269,8 +276,10 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-//    sprintf(str, "%d\n", bp);
-//    send_uart(str);  //used for debugging button press
+	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
+	if (adc_flag == 0) {
+		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
+	}
 
     if (bp > 1)
     {
@@ -283,34 +292,38 @@ int main(void)
       break;
     }
 
-    //format all 10 dac values to be printed in one string
-    sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d\n",
-            value[0], value[1], value[2], value[3], value[4],
-            value[5], value[6], value[7]);
+    else if (adc_flag == 1)
+    {
+    	adc_flag = 0; //clear adc_flag
 
-    send_uart(str);
-    //	send_uart("\r\n");
+		//format all 10 dac values to be printed in one string
+		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
+				adc[0], adc[1], adc[2], adc[3], adc[4],
+				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
 
-    /* Open the file with write access */
-    fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+#if SHOW_UART_WRITE
+		send_uart(str);
+#endif
 
-    /* Move to offset to the end of the file */
-    fresult = f_lseek(&fil, fil.fsize);
+		/* Open the file with write access */
+		fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
-    /* write the string to the file */
-    fresult = f_puts(str, &fil);
+		/* Move to offset to the end of the file */
+		fresult = f_lseek(&fil, fil.fsize);
 
-    /* close file */
-    f_close(&fil);
+		/* write the string to the file */
+		fresult = f_puts(str, &fil);
 
-    //reset adc to get new values --> todo: find if this is the correct way to do this
-    HAL_ADC_Stop(&hadc);
-    HAL_ADC_Start(&hadc);
+		/* close file */
+		f_close(&fil);
 
-    HAL_Delay(1000); //1000ms delay
+		line_count++;
+    }
+
+//    HAL_Delay(1); //1ms delay
   }
 
-  send_uart_ln(DATA_COLLECTION_HALTED_MSG);
+  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
 
   /* Open to read the file */
   fresult = f_open(&fil, name, FA_READ);
@@ -331,7 +344,11 @@ int main(void)
   /* Unmount SDCARD */
   fresult = f_mount(NULL, "", 1);
   if (fresult == FR_OK)
-    send_uart_ln(SD_CARD_UNMOUNT_SUCCESS_MSG);
+    send_uart("SD CARD UNMOUNTED successfully...\n");
+
+  sprintf(str, "line count: %d\n", line_count);
+
+  send_uart(str);
 
   /* USER CODE END 3 */
 }
@@ -476,6 +493,34 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted.
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN ADC_Init 2 */
 
   /* USER CODE END ADC_Init 2 */
@@ -583,24 +628,24 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : BUTTON_PIN_Pin */
-  GPIO_InitStruct.Pin = BUTTON_PIN_Pin;
+  /*Configure GPIO pin : BUTTON_Pin */
+  GPIO_InitStruct.Pin = BUTTON_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(BUTTON_PIN_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
-  GPIO_InitStruct.Pin = LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
+  /*Configure GPIO pins : SEL_Pin LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
+  GPIO_InitStruct.Pin = SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -629,6 +674,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     /* Toggle LED1 */
     bp++;
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	SEL_GPIO_Port -> ODR ^= SEL_Pin; //toggle SEL pin
+
+	for (int i =0; i < ADC_NUM_CHANNELS; i++)
+	{
+	   adc[i] = adc_buf[i];  // store the values in adc[]
+	}
+	adc_flag = 1;
+}
+
+void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
+{
+	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
+    send_uart("\n");
+    HAL_UART_Receive_IT( &huart1, &RxData, 1 );
 }
 /* USER CODE END 4 */
 
