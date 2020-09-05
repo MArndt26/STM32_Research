@@ -85,6 +85,9 @@
 #define ACK_INVALID 'e'
 #define CMD_VIEW 'v'
 #define CMD_HALT 'h'
+#define CMD_LOAD 'l'
+
+#define UART_BUF_SIZE 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -131,7 +134,7 @@ void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 enum STATE
 {
 	IDLE,
-	FILE_SEARCHING,
+	LOADING_FILE,
 	LOADED,
 	VIEWING,
 	RUNNING,
@@ -148,12 +151,14 @@ int adc_flag = 0;
 
 uint64_t line_count = 0;
 
-char RxData = '\0';
+char RxData[UART_BUF_SIZE];
 
 FATFS fs;          // file system
 FIL fil;           // file
 FRESULT fresult;   // to store the result
 char buffer[1024]; // to store data
+DIR dj;			   // Directory object
+FILINFO fno;       // File information
 
 UINT br, bw; // file read/write count
 
@@ -166,6 +171,8 @@ volatile int bp = 0;                                      //number of times butt
 char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * ADC_NUM_CHANNELS]; //string var for sending to usart
 
 char name[9];
+
+const MSG_WELCOME = "Begin 8 Chan ADC to Micro SD\n";
 
 /* USER CODE END 0 */
 
@@ -204,34 +211,12 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+  HAL_UART_Receive_IT( &huart1, RxData, UART_BUF_SIZE );
 
-  send_uart("Begin 8 Chan ADC to Micro SD\n");
+  send_uart(MSG_WELCOME);
 
   // Calibrate The ADC On Power-Up For Better Accuracy
   HAL_ADCEx_Calibration_Start(&hadc);
-
-
-//  mount_sd();
-//
-//  read_card_details();
-//
-//  create_file();
-
-//  /* Wait for User Button Press to Begin Data Collection */
-//  while (bp == 0)
-//  {
-//    blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
-//  }
-//
-//  blink(3, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
-//
-//  // Calibrate The ADC On Power-Up For Better Accuracy
-//  HAL_ADCEx_Calibration_Start(&hadc);
-
-
-//  /* Open the file with write access */
-//  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
 
   /* USER CODE END 2 */
@@ -245,7 +230,14 @@ int main(void)
 	    case IDLE:
 	  	  blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
 	  	  break;
-	    case FILE_SEARCHING:
+	    case LOADING_FILE:
+//	    	if (load_file()) {
+//	    		cur_state = LOADED;
+//	    	}
+//	    	else
+//	    	{
+	    		cur_state = IDLE;
+//	    	}
 	  	  break;
 	    case CREATING_FILE:
 	  	  mount_sd();
@@ -296,54 +288,11 @@ int main(void)
 
 	  	  break;
 	    }
+  }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-//	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
-//	if (adc_flag == 0) {
-//		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
-//	}
-
-//    if (bp > 1)
-//    {
-//      //blink green led 2 times to show data collection halted
-//      blink(2, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
-//      break;
-//    }
-
-//    else if (adc_flag == 1)
-//    {
-//    	adc_flag = 0; //clear adc_flag
-//
-//		//format all 10 dac values to be printed in one string
-//		sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
-//				adc[0], adc[1], adc[2], adc[3], adc[4],
-//				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
-//
-//#if SHOW_UART_WRITE
-//		send_uart(str);
-//#endif
-//
-//		/* write the string to the file */
-//		fresult = f_puts(str, &fil);
-//
-//		line_count++;
-//    }
-
-//    HAL_Delay(1); //1ms delay
-  }
-//
-//	/* close file */
-//	f_close(&fil);
-//
-//  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
-//
-//  bufclear();
-//
-//  unmount_sd();
-
 
   /* USER CODE END 3 */
 }
@@ -740,7 +689,20 @@ void create_file()
 	send_uart(name); //ex: File1.txt created and is ready for data to be written
 
 	send_uart(" created and header was written \n");
-  }
+}
+
+//int load_file()
+//{
+//	fresult = f_findfirst(&dj, &fno, "", "F0.txt");
+//	while (fresult == FR_OK && fno.fname[0])
+//	{
+//		send_uart(fno.fname);
+//		fresult = f_findnext(&dj, &fno);
+//	}
+//	f_closedir(&dj);
+//
+//	return 0;
+//}
 
 void unmount_sd()
  {
@@ -795,35 +757,40 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 {
 	//echoback command for debugging
-	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
+	HAL_UART_Transmit(&huart1, RxData, UART_BUF_SIZE, 1000); // transmit in blocking mode
     send_uart("\n");
-    HAL_UART_Receive_IT( &huart1, &RxData, 1 );  //restart listening for interrupt
+    HAL_UART_Receive_IT( &huart1, RxData, UART_BUF_SIZE );  //restart listening for interrupt
 
 	int valid_cmd = 0;
 
 	switch (cur_state)
 	{
 	case IDLE:
-		if (RxData == CMD_CREATE_DEFAULT)
+		if (RxData[0] == CMD_CREATE_DEFAULT)
 		{
 			valid_cmd = 1;
 			cur_state = CREATING_FILE;
 		}
+		else if (RxData[0] == CMD_LOAD)
+		{
+			valid_cmd = 1;
+			cur_state = LOADING_FILE;
+		}
 		break;
 	case LOADED:
-		if (RxData == CMD_START)
+		if (RxData[0] == CMD_START)
 		{
 			valid_cmd = 1;
 			cur_state = RUNNING;
 		}
-		else if (RxData == CMD_VIEW)
+		else if (RxData[0] == CMD_VIEW)
 		{
 			valid_cmd = 1;
 			cur_state = VIEWING;
 		}
 		break;
 	case RUNNING:
-		if (RxData == CMD_HALT)
+		if (RxData[0] == CMD_HALT)
 		{
 			valid_cmd = 1;
 			cur_state = CLOSING_FILE;
@@ -834,7 +801,7 @@ void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 	{
 		char c_buff = ACK_INVALID;
 		HAL_UART_Transmit(&huart1, &c_buff, 1, 1000); // transmit in blocking mode
-
+		send_uart("\n");
 	}
 }
 /* USER CODE END 4 */
