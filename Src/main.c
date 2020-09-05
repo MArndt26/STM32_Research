@@ -78,6 +78,16 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
+#define ADC_NUM_CHANNELS 12
+
+#define CMD_START 's'
+#define CMD_CREATE_DEFAULT 'd'
+#define ACK_INVALID 'e'
+#define CMD_VIEW 'v'
+#define CMD_HALT 'h'
+#define CMD_LOAD 'l'
+
+#define UART_BUF_SIZE 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -104,14 +114,36 @@ static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC_Init(void);
+
+void send_uart(char *string);
+int bufsize(char *buf);
+void bufclear(void);
+
+void mount_sd();
+void read_card_details();
+void create_file();
+void unmount_sd();
+void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+enum STATE
+{
+	IDLE,
+	LOADING_FILE,
+	LOADED,
+	VIEWING,
+	RUNNING,
+	CREATING_FILE,
+	CLOSING_FILE
+};
 
-#define ADC_NUM_CHANNELS 12
+enum STATE cur_state = IDLE;
+
 
 uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
 uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
@@ -119,12 +151,14 @@ int adc_flag = 0;
 
 uint64_t line_count = 0;
 
-char RxData = '\0';
+char RxData[UART_BUF_SIZE];
 
 FATFS fs;          // file system
 FIL fil;           // file
 FRESULT fresult;   // to store the result
 char buffer[1024]; // to store data
+DIR dj;			   // Directory object
+FILINFO fno;       // File information
 
 UINT br, bw; // file read/write count
 
@@ -134,31 +168,11 @@ DWORD fre_clust;
 uint32_t total, free_space;
 
 volatile int bp = 0;                                      //number of times button has been pressed
-char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * (9 + 2)]; //string var for sending to usart
+char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * ADC_NUM_CHANNELS]; //string var for sending to usart
 
-/* to send the data to the uart */
-void send_uart(char *string)
-{
-  uint8_t len = strlen(string);
-  HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
-}
+char name[9];
 
-/* to find the size of data in the buffer */
-int bufsize(char *buf)
-{
-  int i = 0;
-  while (*buf++ != '\0')
-    i++;
-  return i;
-}
-
-void bufclear(void) // clear buffer
-{
-  for (int i = 0; i < 1024; i++)
-  {
-    buffer[i] = '\0';
-  }
-}
+const MSG_WELCOME = "Begin 8 Chan ADC to Micro SD\n";
 
 /* USER CODE END 0 */
 
@@ -197,70 +211,9 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+  HAL_UART_Receive_IT( &huart1, RxData, UART_BUF_SIZE );
 
-  send_uart("Begin 8 Chan ADC to Micro SD\n");
-
-  /* Mount SD Card */
-  fresult = f_mount(&fs, "", 1);
-  if (fresult != FR_OK)
-    send_uart("error in mounting SD CARD...\n");
-  else
-    send_uart("SD CARD mounted successfully...\n");
-
-  /*************** Card capacity details ********************/
-
-  /* Check free space */
-  f_getfree("", &fre_clust, &pfs);
-
-  total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
-  send_uart(buffer);
-  bufclear();
-  free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
-  send_uart(buffer);
-
-  /*************** Create File For Data Storage ********************/
-
-  int fileNumber = 0;
-  char name[9];
-
-  //check if filename exist
-  sprintf(name, "F%d.TXT", fileNumber);
-  while (f_stat(name, NULL) == FR_OK)
-  {
-    fileNumber++;
-    sprintf(name, "F%d.TXT", fileNumber);
-  }
-
-  /* once filename is new create file */
-  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-  /* Writing text */
-  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
-
-  /* Close file */
-  fresult = f_close(&fil);
-
-  send_uart(name); //ex: File1.txt created and is ready for data to be written
-
-  send_uart(" created and header was written \n");
-
-  /* Wait for User Button Press to Begin Data Collection */
-  while (bp == 0)
-  {
-    HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-
-    HAL_Delay(100);
-  }
-
-  //blink led 3 times to show that data collection is initialized
-  for (int i = 0; i < 6; i++)
-  {
-    HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-    HAL_Delay(100); //1000ms delay
-  }
+  send_uart(MSG_WELCOME);
 
   // Calibrate The ADC On Power-Up For Better Accuracy
   HAL_ADCEx_Calibration_Start(&hadc);
@@ -272,83 +225,74 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  switch (cur_state)
+	    {
+	    case IDLE:
+	  	  blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
+	  	  break;
+	    case LOADING_FILE:
+//	    	if (load_file()) {
+//	    		cur_state = LOADED;
+//	    	}
+//	    	else
+//	    	{
+	    		cur_state = IDLE;
+//	    	}
+	  	  break;
+	    case CREATING_FILE:
+	  	  mount_sd();
+	  	  create_file();
+	  	  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE); // Open the file with write access
+	  	  cur_state = LOADED;
+	  	  break;
+	    case LOADED:
+	  	  blink(1, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
+	  	  break;
+	    case VIEWING:
+	  	  //todo: write function to view file preview
+	  	  cur_state = LOADED;
+	  	  break;
+	    case RUNNING:
+	  	  if (adc_flag == 0) //restart adc collection
+	  	  {
+	  		  // Pass (The ADC Instance, Result Buffer Address, Buffer Length)
+	  		  HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
+	  	  }
+	  	  else
+	  	  {
+	  		  adc_flag = 0; //clear adc_flag
+
+	  		  //format all 10 dac values to be printed in one string
+	  		  sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+	  				  adc[0], adc[1], adc[2], adc[3], adc[4],
+	  				  adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
+
+	  		  /* write the string to the file */
+	  		  fresult = f_puts(str, &fil);
+
+	  		  line_count++;
+	  	  }
+
+	  	  break;
+	    case CLOSING_FILE:
+	  	  /* close file */
+	  	  f_close(&fil);
+
+	  	  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
+
+	  	  bufclear();
+
+	  	  unmount_sd();
+
+	  	  cur_state = IDLE;
+
+	  	  break;
+	    }
+  }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
-	if (adc_flag == 0) {
-		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
-	}
-
-    if (bp > 1)
-    {
-      //blink green led 2 times to show data collection halted
-      for (int i = 0; i < 4; i++)
-	  {
-		HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-		HAL_Delay(100); //1000ms delay
-	  }
-      break;
-    }
-
-    else if (adc_flag == 1)
-    {
-    	adc_flag = 0; //clear adc_flag
-
-		//format all 10 dac values to be printed in one string
-		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
-				adc[0], adc[1], adc[2], adc[3], adc[4],
-				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
-
-#if SHOW_UART_WRITE
-		send_uart(str);
-#endif
-
-		/* Open the file with write access */
-		fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
-
-		/* Move to offset to the end of the file */
-		fresult = f_lseek(&fil, fil.fsize);
-
-		/* write the string to the file */
-		fresult = f_puts(str, &fil);
-
-		/* close file */
-		f_close(&fil);
-
-		line_count++;
-    }
-
-//    HAL_Delay(1); //1ms delay
-  }
-
-  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
-
-  /* Open to read the file */
-  fresult = f_open(&fil, name, FA_READ);
-
-  /* Read string from the file */
-  while (!f_eof(&fil))
-  {
-    /* Read string from the file */
-    f_gets(buffer, fil.fsize, &fil);
-    send_uart(buffer);
-  }
-
-  /* Close file */
-  f_close(&fil);
-
-  bufclear();
-
-  /* Unmount SDCARD */
-  fresult = f_mount(NULL, "", 1);
-  if (fresult == FR_OK)
-    send_uart("SD CARD UNMOUNTED successfully...\n");
-
-  sprintf(str, "line count: %d\n", line_count);
-
-  send_uart(str);
 
   /* USER CODE END 3 */
 }
@@ -665,6 +609,129 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+/*********************User Defined Functions********************/
+
+/* to send the data to the uart */
+void send_uart(char *string)
+{
+  uint8_t len = strlen(string);
+  HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
+}
+
+/* to find the size of data in the buffer */
+int bufsize(char *buf)
+{
+  int i = 0;
+  while (*buf++ != '\0')
+    i++;
+  return i;
+}
+
+void bufclear(void) // clear buffer
+{
+  for (int i = 0; i < 1024; i++)
+  {
+    buffer[i] = '\0';
+  }
+}
+
+void mount_sd()
+{
+	/* Mount SD Card */
+	fresult = f_mount(&fs, "", 1);
+	if (fresult != FR_OK)
+	  send_uart("error in mounting SD CARD...\n");
+	else
+	  send_uart("SD CARD mounted successfully...\n");
+  }
+
+void read_card_details()
+{
+	/*************** Card capacity details ********************/
+
+	/* Check free space */
+	f_getfree("", &fre_clust, &pfs);
+
+	total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+	sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
+	send_uart(buffer);
+	bufclear();
+	free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+	sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
+	send_uart(buffer);
+  }
+
+void create_file()
+{
+	/*************** Create File For Data Storage ********************/
+
+	int fileNumber = 0;
+
+	//check if filename exist
+	sprintf(name, "F%d.TXT", fileNumber);
+	while (f_stat(name, NULL) == FR_OK)
+	{
+	  fileNumber++;
+	  sprintf(name, "F%d.TXT", fileNumber);
+	}
+
+	/* once filename is new create file */
+	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+	/* Writing text */
+	fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
+
+	/* Close file */
+	fresult = f_close(&fil);
+
+	send_uart(name); //ex: File1.txt created and is ready for data to be written
+
+	send_uart(" created and header was written \n");
+}
+
+//int load_file()
+//{
+//	fresult = f_findfirst(&dj, &fno, "", "F0.txt");
+//	while (fresult == FR_OK && fno.fname[0])
+//	{
+//		send_uart(fno.fname);
+//		fresult = f_findnext(&dj, &fno);
+//	}
+//	f_closedir(&dj);
+//
+//	return 0;
+//}
+
+void unmount_sd()
+ {
+	/* Unmount SDCARD */
+	fresult = f_mount(NULL, "", 1);
+	if (fresult == FR_OK)
+	  send_uart("SD CARD UNMOUNTED successfully...\n");
+
+	sprintf(str, "line count: %d\n", line_count);
+
+	send_uart(str);
+ }
+
+/*Wrapper to blink LEDs*/
+void blink(int num_blinks, GPIO_TypeDef* port, uint16_t pin)
+{
+	 //blink led <num_blink> times to show that data collection is initialized
+	  for (int i = 0; i < num_blinks * 2; i++)
+	  {
+	    HAL_GPIO_TogglePin(port, pin);
+	    HAL_Delay(100); //1000ms delay
+	  }
+}
+
+
+
+
+/*******************Interrupt Callbacks*******************/
+
 /**
   * @brief EXTI line detection callbacks
   * @param GPIO_Pin: Specifies the pins connected EXTI line
@@ -689,9 +756,53 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 {
-	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
+	//echoback command for debugging
+	HAL_UART_Transmit(&huart1, RxData, UART_BUF_SIZE, 1000); // transmit in blocking mode
     send_uart("\n");
-    HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+    HAL_UART_Receive_IT( &huart1, RxData, UART_BUF_SIZE );  //restart listening for interrupt
+
+	int valid_cmd = 0;
+
+	switch (cur_state)
+	{
+	case IDLE:
+		if (RxData[0] == CMD_CREATE_DEFAULT)
+		{
+			valid_cmd = 1;
+			cur_state = CREATING_FILE;
+		}
+		else if (RxData[0] == CMD_LOAD)
+		{
+			valid_cmd = 1;
+			cur_state = LOADING_FILE;
+		}
+		break;
+	case LOADED:
+		if (RxData[0] == CMD_START)
+		{
+			valid_cmd = 1;
+			cur_state = RUNNING;
+		}
+		else if (RxData[0] == CMD_VIEW)
+		{
+			valid_cmd = 1;
+			cur_state = VIEWING;
+		}
+		break;
+	case RUNNING:
+		if (RxData[0] == CMD_HALT)
+		{
+			valid_cmd = 1;
+			cur_state = CLOSING_FILE;
+		}
+	}
+
+	if (!valid_cmd) //notify user of invalid command entered
+	{
+		char c_buff = ACK_INVALID;
+		HAL_UART_Transmit(&huart1, &c_buff, 1, 1000); // transmit in blocking mode
+		send_uart("\n");
+	}
 }
 /* USER CODE END 4 */
 
