@@ -85,6 +85,9 @@
 #define ACK_INVALID 'e'
 #define CMD_VIEW 'v'
 #define CMD_HALT 'h'
+#define CMD_LOAD 'l'
+
+#define UART_BUF_SIZE 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -131,7 +134,7 @@ void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 enum STATE
 {
 	IDLE,
-	FILE_SEARCHING,
+	LOADING_FILE,
 	LOADED,
 	VIEWING,
 	RUNNING,
@@ -148,7 +151,7 @@ int adc_flag = 0;
 
 uint64_t line_count = 0;
 
-char RxData = '\0';
+char RxData[UART_BUF_SIZE];
 
 FATFS fs;          // file system
 FIL fil;           // file
@@ -204,7 +207,7 @@ int main(void)
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+  HAL_UART_Receive_IT( &huart1, &RxData, UART_BUF_SIZE );
 
   send_uart("Begin 8 Chan ADC to Micro SD\n");
 
@@ -245,7 +248,7 @@ int main(void)
 	    case IDLE:
 	  	  blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
 	  	  break;
-	    case FILE_SEARCHING:
+	    case LOADING_FILE:
 	  	  break;
 	    case CREATING_FILE:
 	  	  mount_sd();
@@ -795,35 +798,35 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 {
 	//echoback command for debugging
-	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
+	HAL_UART_Transmit(&huart1, &RxData, UART_BUF_SIZE, 1000); // transmit in blocking mode
     send_uart("\n");
-    HAL_UART_Receive_IT( &huart1, &RxData, 1 );  //restart listening for interrupt
+    HAL_UART_Receive_IT( &huart1, &RxData, UART_BUF_SIZE );  //restart listening for interrupt
 
 	int valid_cmd = 0;
 
 	switch (cur_state)
 	{
 	case IDLE:
-		if (RxData == CMD_CREATE_DEFAULT)
+		if (RxData[0] == CMD_CREATE_DEFAULT)
 		{
 			valid_cmd = 1;
 			cur_state = CREATING_FILE;
 		}
 		break;
 	case LOADED:
-		if (RxData == CMD_START)
+		if (RxData[0] == CMD_START)
 		{
 			valid_cmd = 1;
 			cur_state = RUNNING;
 		}
-		else if (RxData == CMD_VIEW)
+		else if (RxData[0] == CMD_VIEW)
 		{
 			valid_cmd = 1;
 			cur_state = VIEWING;
 		}
 		break;
 	case RUNNING:
-		if (RxData == CMD_HALT)
+		if (RxData[0] == CMD_HALT)
 		{
 			valid_cmd = 1;
 			cur_state = CLOSING_FILE;

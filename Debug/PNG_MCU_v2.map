@@ -89,6 +89,7 @@ Timer2              0x1               Src\stm32f0xx_it.o
 pfs                 0x4               Src\main.o
 fresult             0x1               Src\main.o
 hspi1               0x64              Src\main.o
+RxData              0x5               Src\main.o
 adc_buf             0x30              Src\main.o
 str                 0x3c              Src\main.o
 total               0x4               Src\main.o
@@ -1871,7 +1872,7 @@ LOAD c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../l
  .igot.plt      0x20000088        0x0 c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../lib/gcc/arm-atollic-eabi/6.3.1/armv6-m/crtbegin.o
                 0x20000088                . = ALIGN (0x4)
 
-.bss            0x20000088     0x1968 load address 0x08005c5c
+.bss            0x20000088     0x1970 load address 0x08005c5c
                 0x20000088                _sbss = .
                 0x20000088                __bss_start__ = _sbss
  *(.bss)
@@ -1887,9 +1888,7 @@ LOAD c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../l
  .bss.CardType  0x200002d0        0x1 Src\fatfs_sd.o
  .bss.PowerFlag
                 0x200002d1        0x1 Src\fatfs_sd.o
- .bss.RxData    0x200002d2        0x1 Src\main.o
-                0x200002d2                RxData
- *fill*         0x200002d3        0x1 
+ *fill*         0x200002d2        0x2 
  .bss.adc_flag  0x200002d4        0x4 Src\main.o
                 0x200002d4                adc_flag
  .bss.bp        0x200002d8        0x4 Src\main.o
@@ -1920,7 +1919,7 @@ LOAD c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../l
                 0x20000300                retUSER
                 0x20000304                USERFile
                 0x20000730                USERFatFS
- COMMON         0x20000b60      0xe88 Src\main.o
+ COMMON         0x20000b60      0xe90 Src\main.o
                 0x20000b60                fre_clust
                 0x20000b64                fs
                 0x20000f94                br
@@ -1932,33 +1931,34 @@ LOAD c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../l
                 0x20001450                pfs
                 0x20001454                fresult
                 0x20001458                hspi1
-                0x200014bc                adc_buf
-                0x200014ec                str
-                0x20001528                total
-                0x2000152c                hdma_adc
-                0x20001570                hadc
-                0x200015b0                name
-                0x200015bc                fil
- COMMON         0x200019e8        0x2 Src\stm32f0xx_it.o
-                0x200019e8                Timer2
-                0x200019e9                Timer1
- *fill*         0x200019ea        0x2 
- COMMON         0x200019ec        0x4 c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../lib/gcc/arm-atollic-eabi/6.3.1/../../../../arm-atollic-eabi/lib/armv6-m\libc_nano.a(lib_a-reent.o)
-                0x200019ec                errno
-                0x200019f0                . = ALIGN (0x4)
-                0x200019f0                _ebss = .
-                0x200019f0                __bss_end__ = _ebss
+                0x200014bc                RxData
+                0x200014c4                adc_buf
+                0x200014f4                str
+                0x20001530                total
+                0x20001534                hdma_adc
+                0x20001578                hadc
+                0x200015b8                name
+                0x200015c4                fil
+ COMMON         0x200019f0        0x2 Src\stm32f0xx_it.o
+                0x200019f0                Timer2
+                0x200019f1                Timer1
+ *fill*         0x200019f2        0x2 
+ COMMON         0x200019f4        0x4 c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../lib/gcc/arm-atollic-eabi/6.3.1/../../../../arm-atollic-eabi/lib/armv6-m\libc_nano.a(lib_a-reent.o)
+                0x200019f4                errno
+                0x200019f8                . = ALIGN (0x4)
+                0x200019f8                _ebss = .
+                0x200019f8                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x200019f0      0x600 load address 0x08005c5c
-                0x200019f0                . = ALIGN (0x4)
-                0x200019f0                PROVIDE (end, .)
+                0x200019f8      0x600 load address 0x08005c5c
+                0x200019f8                . = ALIGN (0x4)
+                0x200019f8                PROVIDE (end, .)
                 [!provide]                PROVIDE (_end, .)
-                0x20001bf0                . = (. + _Min_Heap_Size)
- *fill*         0x200019f0      0x200 
-                0x20001ff0                . = (. + _Min_Stack_Size)
- *fill*         0x20001bf0      0x400 
-                0x20001ff0                . = ALIGN (0x4)
+                0x20001bf8                . = (. + _Min_Heap_Size)
+ *fill*         0x200019f8      0x200 
+                0x20001ff8                . = (. + _Min_Stack_Size)
+ *fill*         0x20001bf8      0x400 
+                0x20001ff8                . = ALIGN (0x4)
 
 /DISCARD/
  libc.a(*)
@@ -2068,7 +2068,7 @@ LOAD c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../l
                 0x00000852       0x1e c:/program files (x86)/atollic/truestudio for stm32 9.3.0/armtools/bin/../lib/gcc/arm-atollic-eabi/6.3.1/armv6-m/crtn.o
 OUTPUT(PNG_MCU_v2.elf elf32-littlearm)
 
-.debug_info     0x00000000    0x151cf
+.debug_info     0x00000000    0x151df
  .debug_info    0x00000000      0x757 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.o
  .debug_info    0x00000757      0xec5 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_adc.o
  .debug_info    0x0000161c      0x619 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_adc_ex.o
@@ -2086,13 +2086,13 @@ OUTPUT(PNG_MCU_v2.elf elf32-littlearm)
  .debug_info    0x0000d2e3      0x24e Middlewares\Third_Party\FatFs\src\option\ccsbcs.o
  .debug_info    0x0000d531      0x5a3 Src\fatfs.o
  .debug_info    0x0000dad4     0x1262 Src\fatfs_sd.o
- .debug_info    0x0000ed36     0x2ae2 Src\main.o
- .debug_info    0x00011818     0x11f2 Src\stm32f0xx_hal_msp.o
- .debug_info    0x00012a0a      0x7a6 Src\stm32f0xx_it.o
- .debug_info    0x000131b0      0xfe1 Src\syscalls.o
- .debug_info    0x00014191      0x2a4 Src\system_stm32f0xx.o
- .debug_info    0x00014435      0xcf9 Src\user_diskio.o
- .debug_info    0x0001512e       0xa1 startup\startup_stm32f051x8.o
+ .debug_info    0x0000ed36     0x2af2 Src\main.o
+ .debug_info    0x00011828     0x11f2 Src\stm32f0xx_hal_msp.o
+ .debug_info    0x00012a1a      0x7a6 Src\stm32f0xx_it.o
+ .debug_info    0x000131c0      0xfe1 Src\syscalls.o
+ .debug_info    0x000141a1      0x2a4 Src\system_stm32f0xx.o
+ .debug_info    0x00014445      0xcf9 Src\user_diskio.o
+ .debug_info    0x0001513e       0xa1 startup\startup_stm32f051x8.o
 
 .debug_abbrev   0x00000000     0x34ea
  .debug_abbrev  0x00000000      0x264 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.o
@@ -2245,7 +2245,7 @@ OUTPUT(PNG_MCU_v2.elf elf32-littlearm)
  .debug_line    0x000075ef      0x2dd Src\user_diskio.o
  .debug_line    0x000078cc       0x82 startup\startup_stm32f051x8.o
 
-.debug_str      0x00000000     0x3b87
+.debug_str      0x00000000     0x3b85
  .debug_str     0x00000000      0x6c0 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal.o
                                 0x726 (size before relaxing)
  .debug_str     0x000006c0      0x685 Drivers\STM32F0xx_HAL_Driver\Src\stm32f0xx_hal_adc.o
@@ -2280,17 +2280,17 @@ OUTPUT(PNG_MCU_v2.elf elf32-littlearm)
                                 0x442 (size before relaxing)
  .debug_str     0x00003141      0x12f Src\fatfs_sd.o
                                 0x8a1 (size before relaxing)
- .debug_str     0x00003270      0x565 Src\main.o
-                               0x1887 (size before relaxing)
- .debug_str     0x000037d5       0x1b Src\stm32f0xx_hal_msp.o
+ .debug_str     0x00003270      0x563 Src\main.o
+                               0x1885 (size before relaxing)
+ .debug_str     0x000037d3       0x1b Src\stm32f0xx_hal_msp.o
                                 0xd24 (size before relaxing)
- .debug_str     0x000037f0       0xb6 Src\stm32f0xx_it.o
+ .debug_str     0x000037ee       0xb6 Src\stm32f0xx_it.o
                                 0x767 (size before relaxing)
- .debug_str     0x000038a6      0x236 Src\syscalls.o
+ .debug_str     0x000038a4      0x236 Src\syscalls.o
                                 0x880 (size before relaxing)
- .debug_str     0x00003adc       0x5a Src\system_stm32f0xx.o
+ .debug_str     0x00003ada       0x5a Src\system_stm32f0xx.o
                                 0x319 (size before relaxing)
- .debug_str     0x00003b36       0x51 Src\user_diskio.o
+ .debug_str     0x00003b34       0x51 Src\user_diskio.o
                                 0x7f0 (size before relaxing)
 
 .comment        0x00000000       0x7c
