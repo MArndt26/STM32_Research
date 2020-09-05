@@ -104,6 +104,16 @@ static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC_Init(void);
+
+void send_uart(char *string);
+int bufsize(char *buf);
+void bufclear(void);
+
+void mount_sd();
+void read_card_details();
+void create_file();
+void unmount_sd();
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -136,29 +146,7 @@ uint32_t total, free_space;
 volatile int bp = 0;                                      //number of times button has been pressed
 char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * (9 + 2)]; //string var for sending to usart
 
-/* to send the data to the uart */
-void send_uart(char *string)
-{
-  uint8_t len = strlen(string);
-  HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
-}
-
-/* to find the size of data in the buffer */
-int bufsize(char *buf)
-{
-  int i = 0;
-  while (*buf++ != '\0')
-    i++;
-  return i;
-}
-
-void bufclear(void) // clear buffer
-{
-  for (int i = 0; i < 1024; i++)
-  {
-    buffer[i] = '\0';
-  }
-}
+char name[9];
 
 /* USER CODE END 0 */
 
@@ -201,51 +189,11 @@ int main(void)
 
   send_uart("Begin 8 Chan ADC to Micro SD\n");
 
-  /* Mount SD Card */
-  fresult = f_mount(&fs, "", 1);
-  if (fresult != FR_OK)
-    send_uart("error in mounting SD CARD...\n");
-  else
-    send_uart("SD CARD mounted successfully...\n");
+  mount_sd();
 
-  /*************** Card capacity details ********************/
+  read_card_details();
 
-  /* Check free space */
-  f_getfree("", &fre_clust, &pfs);
-
-  total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
-  send_uart(buffer);
-  bufclear();
-  free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-  sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
-  send_uart(buffer);
-
-  /*************** Create File For Data Storage ********************/
-
-  int fileNumber = 0;
-  char name[9];
-
-  //check if filename exist
-  sprintf(name, "F%d.TXT", fileNumber);
-  while (f_stat(name, NULL) == FR_OK)
-  {
-    fileNumber++;
-    sprintf(name, "F%d.TXT", fileNumber);
-  }
-
-  /* once filename is new create file */
-  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-
-  /* Writing text */
-  fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
-
-  /* Close file */
-  fresult = f_close(&fil);
-
-  send_uart(name); //ex: File1.txt created and is ready for data to be written
-
-  send_uart(" created and header was written \n");
+  create_file();
 
   /* Wait for User Button Press to Begin Data Collection */
   while (bp == 0)
@@ -309,13 +257,8 @@ int main(void)
 		send_uart(str);
 #endif
 
-
-//		/* Move to offset to the end of the file */
-//		fresult = f_lseek(&fil, fil.fsize);
-
 		/* write the string to the file */
 		fresult = f_puts(str, &fil);
-
 
 		line_count++;
     }
@@ -328,30 +271,10 @@ int main(void)
 
   send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
 
-//  /* Open to read the file */
-//  fresult = f_open(&fil, name, FA_READ);
-//
-//  /* Read string from the file */
-//  while (!f_eof(&fil))
-//  {
-//    /* Read string from the file */
-//    f_gets(buffer, fil.fsize, &fil);
-//    send_uart(buffer);
-//  }
-//
-//  /* Close file */
-//  f_close(&fil);
-
   bufclear();
 
-  /* Unmount SDCARD */
-  fresult = f_mount(NULL, "", 1);
-  if (fresult == FR_OK)
-    send_uart("SD CARD UNMOUNTED successfully...\n");
+  unmount_sd();
 
-  sprintf(str, "line count: %d\n", line_count);
-
-  send_uart(str);
 
   /* USER CODE END 3 */
 }
@@ -668,6 +591,105 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+/*********************User Defined Functions********************/
+
+/* to send the data to the uart */
+void send_uart(char *string)
+{
+  uint8_t len = strlen(string);
+  HAL_UART_Transmit(&huart1, (uint8_t *)string, len, 2000); // transmit in blocking mode
+}
+
+/* to find the size of data in the buffer */
+int bufsize(char *buf)
+{
+  int i = 0;
+  while (*buf++ != '\0')
+    i++;
+  return i;
+}
+
+void bufclear(void) // clear buffer
+{
+  for (int i = 0; i < 1024; i++)
+  {
+    buffer[i] = '\0';
+  }
+}
+
+void mount_sd()
+{
+	/* Mount SD Card */
+	fresult = f_mount(&fs, "", 1);
+	if (fresult != FR_OK)
+	  send_uart("error in mounting SD CARD...\n");
+	else
+	  send_uart("SD CARD mounted successfully...\n");
+  }
+
+void read_card_details()
+{
+	/*************** Card capacity details ********************/
+
+	/* Check free space */
+	f_getfree("", &fre_clust, &pfs);
+
+	total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+	sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
+	send_uart(buffer);
+	bufclear();
+	free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
+	sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
+	send_uart(buffer);
+  }
+
+void create_file()
+{
+	/*************** Create File For Data Storage ********************/
+
+	int fileNumber = 0;
+
+	//check if filename exist
+	sprintf(name, "F%d.TXT", fileNumber);
+	while (f_stat(name, NULL) == FR_OK)
+	{
+	  fileNumber++;
+	  sprintf(name, "F%d.TXT", fileNumber);
+	}
+
+	/* once filename is new create file */
+	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
+
+	/* Writing text */
+	fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
+
+	/* Close file */
+	fresult = f_close(&fil);
+
+	send_uart(name); //ex: File1.txt created and is ready for data to be written
+
+	send_uart(" created and header was written \n");
+  }
+
+void unmount_sd()
+ {
+	/* Unmount SDCARD */
+	fresult = f_mount(NULL, "", 1);
+	if (fresult == FR_OK)
+	  send_uart("SD CARD UNMOUNTED successfully...\n");
+
+	sprintf(str, "line count: %d\n", line_count);
+
+	send_uart(str);
+ }
+
+
+
+
+/*******************Interrupt Callbacks*******************/
+
 /**
   * @brief EXTI line detection callbacks
   * @param GPIO_Pin: Specifies the pins connected EXTI line
