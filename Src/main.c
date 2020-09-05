@@ -78,6 +78,13 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
+#define ADC_NUM_CHANNELS 12
+
+#define CMD_START 's'
+#define CMD_CREATE_DEFAULT 'd'
+#define ACK_INVALID 'e'
+#define CMD_VIEW 'v'
+#define CMD_HALT 'h'
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -113,6 +120,7 @@ void mount_sd();
 void read_card_details();
 void create_file();
 void unmount_sd();
+void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 
 /* USER CODE BEGIN PFP */
 
@@ -120,8 +128,19 @@ void unmount_sd();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+enum STATE
+{
+	IDLE,
+	FILE_SEARCHING,
+	LOADED,
+	VIEWING,
+	RUNNING,
+	CREATING_FILE,
+	CLOSING_FILE
+};
 
-#define ADC_NUM_CHANNELS 12
+enum STATE cur_state = IDLE;
+
 
 uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
 uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
@@ -144,7 +163,7 @@ DWORD fre_clust;
 uint32_t total, free_space;
 
 volatile int bp = 0;                                      //number of times button has been pressed
-char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * (9 + 2)]; //string var for sending to usart
+char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * ADC_NUM_CHANNELS]; //string var for sending to usart
 
 char name[9];
 
@@ -189,33 +208,30 @@ int main(void)
 
   send_uart("Begin 8 Chan ADC to Micro SD\n");
 
-  mount_sd();
-
-  read_card_details();
-
-  create_file();
-
-  /* Wait for User Button Press to Begin Data Collection */
-  while (bp == 0)
-  {
-    HAL_GPIO_TogglePin(GPIOC, LD4_BLUE_LED_Pin);
-
-    HAL_Delay(100);
-  }
-
-  //blink led 3 times to show that data collection is initialized
-  for (int i = 0; i < 6; i++)
-  {
-    HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-    HAL_Delay(100); //1000ms delay
-  }
-
   // Calibrate The ADC On Power-Up For Better Accuracy
   HAL_ADCEx_Calibration_Start(&hadc);
 
 
-  /* Open the file with write access */
-  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
+//  mount_sd();
+//
+//  read_card_details();
+//
+//  create_file();
+
+//  /* Wait for User Button Press to Begin Data Collection */
+//  while (bp == 0)
+//  {
+//    blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
+//  }
+//
+//  blink(3, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
+//
+//  // Calibrate The ADC On Power-Up For Better Accuracy
+//  HAL_ADCEx_Calibration_Start(&hadc);
+
+
+//  /* Open the file with write access */
+//  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
 
   /* USER CODE END 2 */
@@ -224,56 +240,109 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  switch (cur_state)
+	    {
+	    case IDLE:
+	  	  blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
+	  	  break;
+	    case FILE_SEARCHING:
+	  	  break;
+	    case CREATING_FILE:
+	  	  mount_sd();
+	  	  create_file();
+	  	  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE); // Open the file with write access
+	  	  cur_state = LOADED;
+	  	  break;
+	    case LOADED:
+	  	  blink(1, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
+	  	  break;
+	    case VIEWING:
+	  	  //todo: write function to view file preview
+	  	  cur_state = LOADED;
+	  	  break;
+	    case RUNNING:
+	  	  if (adc_flag == 0) //restart adc collection
+	  	  {
+	  		  // Pass (The ADC Instance, Result Buffer Address, Buffer Length)
+	  		  HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
+	  	  }
+	  	  else
+	  	  {
+	  		  adc_flag = 0; //clear adc_flag
+
+	  		  //format all 10 dac values to be printed in one string
+	  		  sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+	  				  adc[0], adc[1], adc[2], adc[3], adc[4],
+	  				  adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
+
+	  		  /* write the string to the file */
+	  		  fresult = f_puts(str, &fil);
+
+	  		  line_count++;
+	  	  }
+
+	  	  break;
+	    case CLOSING_FILE:
+	  	  /* close file */
+	  	  f_close(&fil);
+
+	  	  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
+
+	  	  bufclear();
+
+	  	  unmount_sd();
+
+	  	  cur_state = IDLE;
+
+	  	  break;
+	    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
-	if (adc_flag == 0) {
-		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
-	}
+//	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
+//	if (adc_flag == 0) {
+//		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
+//	}
 
-    if (bp > 1)
-    {
-      //blink green led 2 times to show data collection halted
-      for (int i = 0; i < 4; i++)
-	  {
-		HAL_GPIO_TogglePin(GPIOC, LD3_GREEN_LED_Pin);
-		HAL_Delay(100); //1000ms delay
-	  }
-      break;
-    }
+//    if (bp > 1)
+//    {
+//      //blink green led 2 times to show data collection halted
+//      blink(2, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
+//      break;
+//    }
 
-    else if (adc_flag == 1)
-    {
-    	adc_flag = 0; //clear adc_flag
-
-		//format all 10 dac values to be printed in one string
-		sprintf(str, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\n",
-				adc[0], adc[1], adc[2], adc[3], adc[4],
-				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
-
-#if SHOW_UART_WRITE
-		send_uart(str);
-#endif
-
-		/* write the string to the file */
-		fresult = f_puts(str, &fil);
-
-		line_count++;
-    }
+//    else if (adc_flag == 1)
+//    {
+//    	adc_flag = 0; //clear adc_flag
+//
+//		//format all 10 dac values to be printed in one string
+//		sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+//				adc[0], adc[1], adc[2], adc[3], adc[4],
+//				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
+//
+//#if SHOW_UART_WRITE
+//		send_uart(str);
+//#endif
+//
+//		/* write the string to the file */
+//		fresult = f_puts(str, &fil);
+//
+//		line_count++;
+//    }
 
 //    HAL_Delay(1); //1ms delay
   }
-
-	/* close file */
-	f_close(&fil);
-
-  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
-
-  bufclear();
-
-  unmount_sd();
+//
+//	/* close file */
+//	f_close(&fil);
+//
+//  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
+//
+//  bufclear();
+//
+//  unmount_sd();
 
 
   /* USER CODE END 3 */
@@ -685,6 +754,17 @@ void unmount_sd()
 	send_uart(str);
  }
 
+/*Wrapper to blink LEDs*/
+void blink(int num_blinks, GPIO_TypeDef* port, uint16_t pin)
+{
+	 //blink led <num_blink> times to show that data collection is initialized
+	  for (int i = 0; i < num_blinks * 2; i++)
+	  {
+	    HAL_GPIO_TogglePin(port, pin);
+	    HAL_Delay(100); //1000ms delay
+	  }
+}
+
 
 
 
@@ -714,9 +794,48 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 {
+	//echoback command for debugging
 	HAL_UART_Transmit(&huart1, &RxData, 1, 1000); // transmit in blocking mode
     send_uart("\n");
-    HAL_UART_Receive_IT( &huart1, &RxData, 1 );
+    HAL_UART_Receive_IT( &huart1, &RxData, 1 );  //restart listening for interrupt
+
+	int valid_cmd = 0;
+
+	switch (cur_state)
+	{
+	case IDLE:
+		if (RxData == CMD_CREATE_DEFAULT)
+		{
+			valid_cmd = 1;
+			cur_state = CREATING_FILE;
+		}
+		break;
+	case LOADED:
+		if (RxData == CMD_START)
+		{
+			valid_cmd = 1;
+			cur_state = RUNNING;
+		}
+		else if (RxData == CMD_VIEW)
+		{
+			valid_cmd = 1;
+			cur_state = VIEWING;
+		}
+		break;
+	case RUNNING:
+		if (RxData == CMD_HALT)
+		{
+			valid_cmd = 1;
+			cur_state = CLOSING_FILE;
+		}
+	}
+
+	if (!valid_cmd) //notify user of invalid command entered
+	{
+		char c_buff = ACK_INVALID;
+		HAL_UART_Transmit(&huart1, &c_buff, 1, 1000); // transmit in blocking mode
+
+	}
 }
 /* USER CODE END 4 */
 
