@@ -78,16 +78,17 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
-#define ADC_NUM_CHANNELS 12
+#define ADC_NUM_CHANNELS 10
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
 #define ACK_INVALID 'e'
 #define CMD_VIEW 'v'
-#define CMD_HALT 'h'
+#define CMD_HALT 'f'
 #define CMD_LOAD 'l'
+#define CMD_HELP 'h'
 
-#define UART_BUF_SIZE 5
+#define UART_BUF_SIZE 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -100,6 +101,8 @@ ADC_HandleTypeDef hadc;
 DMA_HandleTypeDef hdma_adc;
 
 SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart1;
 
@@ -114,17 +117,7 @@ static void MX_DMA_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC_Init(void);
-
-void send_uart(char *string);
-int bufsize(char *buf);
-void bufclear(void);
-
-void mount_sd();
-void read_card_details();
-void create_file();
-void unmount_sd();
-void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
-
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -134,6 +127,7 @@ void blink(int num_blinks, GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 enum STATE
 {
 	IDLE,
+	HELPING,
 	LOADING_FILE,
 	LOADED,
 	VIEWING,
@@ -145,11 +139,11 @@ enum STATE
 enum STATE cur_state = IDLE;
 
 
-uint32_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
-uint32_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
+volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
+volatile uint16_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
 int adc_flag = 0;
 
-uint64_t line_count = 0;
+int line_count = 0;
 
 char RxData[UART_BUF_SIZE];
 
@@ -166,7 +160,7 @@ DWORD fre_clust;
 uint32_t total, free_space;
 
 volatile int bp = 0;                                      //number of times button has been pressed
-char str[sizeof(uint32_t) * ADC_NUM_CHANNELS + sizeof(char) * ADC_NUM_CHANNELS]; //string var for sending to usart
+char str[sizeof(int) * ADC_NUM_CHANNELS + sizeof(char) * ADC_NUM_CHANNELS]; //string var for sending to usart
 
 char name[9];
 
@@ -205,36 +199,20 @@ int main(void)
   MX_USART1_UART_Init();
   MX_FATFS_Init();
   MX_ADC_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_UART_Receive_IT( &huart1, &RxData, UART_BUF_SIZE );
+  HAL_UART_Receive_IT( &huart1, (uint8_t *)&RxData, UART_BUF_SIZE );
 
-  send_uart("Begin 8 Chan ADC to Micro SD\n");
+  send_uart("Begin 10 Chan ADC to Micro SD\n");
 
   // Calibrate The ADC On Power-Up For Better Accuracy
   HAL_ADCEx_Calibration_Start(&hadc);
 
+  HAL_ADC_Start_DMA(&hadc, (uint32_t*)&adc_buf, ADC_NUM_CHANNELS);
 
-//  mount_sd();
-//
-//  read_card_details();
-//
-//  create_file();
+  HAL_TIM_Base_Start_IT(&htim1);
 
-//  /* Wait for User Button Press to Begin Data Collection */
-//  while (bp == 0)
-//  {
-//    blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
-//  }
-//
-//  blink(3, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
-//
-//  // Calibrate The ADC On Power-Up For Better Accuracy
-//  HAL_ADCEx_Calibration_Start(&hadc);
-
-
-//  /* Open the file with write access */
-//  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE);
 
 
   /* USER CODE END 2 */
@@ -248,13 +226,19 @@ int main(void)
 	    case IDLE:
 	  	  blink(1, LD4_BLUE_LED_GPIO_Port, LD4_BLUE_LED_Pin);
 	  	  break;
+	    case HELPING:
+	    	//print commands
+	    	send_uart("s\nd\nv\nf\n");
+	    	break;
 	    case LOADING_FILE:
 	  	  break;
 	    case CREATING_FILE:
+	      __disable_irq();
 	  	  mount_sd();
 	  	  create_file();
 	  	  fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE); // Open the file with write access
 	  	  cur_state = LOADED;
+	  	  __enable_irq();
 	  	  break;
 	    case LOADED:
 	  	  blink(1, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
@@ -273,13 +257,11 @@ int main(void)
 	  	  {
 	  		  adc_flag = 0; //clear adc_flag
 
-	  		  //format all 10 dac values to be printed in one string
-	  		  sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
-	  				  adc[0], adc[1], adc[2], adc[3], adc[4],
-	  				  adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
 
 	  		  /* write the string to the file */
-	  		  fresult = f_puts(str, &fil);
+	  		  fresult = f_printf(&fil, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+	  				  adc[0], adc[1], adc[2], adc[3], adc[4],
+	  				  adc[5], adc[6], adc[7], adc[8], adc[9]);
 
 	  		  line_count++;
 	  	  }
@@ -300,54 +282,12 @@ int main(void)
 	  	  break;
 	    }
 
+
+  }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-//	// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
-//	if (adc_flag == 0) {
-//		HAL_ADC_Start_DMA(&hadc, adc_buf, ADC_NUM_CHANNELS); //start the adc in dma mode
-//	}
-
-//    if (bp > 1)
-//    {
-//      //blink green led 2 times to show data collection halted
-//      blink(2, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
-//      break;
-//    }
-
-//    else if (adc_flag == 1)
-//    {
-//    	adc_flag = 0; //clear adc_flag
-//
-//		//format all 10 dac values to be printed in one string
-//		sprintf(str, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
-//				adc[0], adc[1], adc[2], adc[3], adc[4],
-//				adc[5], adc[6], adc[7], adc[8], adc[9], adc[10], adc[11]);
-//
-//#if SHOW_UART_WRITE
-//		send_uart(str);
-//#endif
-//
-//		/* write the string to the file */
-//		fresult = f_puts(str, &fil);
-//
-//		line_count++;
-//    }
-
-//    HAL_Delay(1); //1ms delay
-  }
-//
-//	/* close file */
-//	f_close(&fil);
-//
-//  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
-//
-//  bufclear();
-//
-//  unmount_sd();
-
-
   /* USER CODE END 3 */
 }
 
@@ -370,7 +310,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL12;
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -384,7 +324,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -425,9 +365,9 @@ static void MX_ADC_Init(void)
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
   hadc.Init.ContinuousConvMode = DISABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
-  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T1_TRGO;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc.Init.DMAContinuousRequests = ENABLE;
   hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   if (HAL_ADC_Init(&hadc) != HAL_OK)
   {
@@ -437,7 +377,7 @@ static void MX_ADC_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -505,20 +445,6 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
-  /** Configure for the selected ADC regular channel to be converted.
-  */
-  sConfig.Channel = ADC_CHANNEL_11;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure for the selected ADC regular channel to be converted.
-  */
-  sConfig.Channel = ADC_CHANNEL_12;
-  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN ADC_Init 2 */
 
   /* USER CODE END ADC_Init 2 */
@@ -562,6 +488,79 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 100-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 10-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -709,11 +708,11 @@ void read_card_details()
 	f_getfree("", &fre_clust, &pfs);
 
 	total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-	sprintf(buffer, "SD CARD Total Size: \t%lu\n", total);
+	sprintf(buffer, "SD CARD Total Size: \t%d\n", total);
 	send_uart(buffer);
 	bufclear();
 	free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-	sprintf(buffer, "SD CARD Free Space: \t%lu\n", free_space);
+	sprintf(buffer, "SD CARD Free Space: \t%d\n", free_space);
 	send_uart(buffer);
   }
 
@@ -735,7 +734,7 @@ void create_file()
 	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
 	/* Writing text */
-	fresult = f_puts("ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9 AD10 AD11\n", &fil);
+	fresult = f_printf(&fil, "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\n");
 
 	/* Close file */
 	fresult = f_close(&fil);
@@ -798,9 +797,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 {
 	//echoback command for debugging
-	HAL_UART_Transmit(&huart1, &RxData, UART_BUF_SIZE, 1000); // transmit in blocking mode
+	HAL_UART_Transmit(&huart1, (uint8_t *)&RxData, UART_BUF_SIZE, 1000); // transmit in blocking mode
     send_uart("\n");
-    HAL_UART_Receive_IT( &huart1, &RxData, UART_BUF_SIZE );  //restart listening for interrupt
+    HAL_UART_Receive_IT( &huart1, (uint8_t *)&RxData, UART_BUF_SIZE );  //restart listening for interrupt
 
 	int valid_cmd = 0;
 
@@ -811,6 +810,11 @@ void HAL_UART_RxCpltCallback( UART_HandleTypeDef *handle )
 		{
 			valid_cmd = 1;
 			cur_state = CREATING_FILE;
+		}
+		else if (RxData[1] == CMD_HELP)
+		{
+			valid_cmd = 1;
+			cur_state = HELPING;
 		}
 		break;
 	case LOADED:
