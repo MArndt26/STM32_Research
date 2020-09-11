@@ -258,35 +258,41 @@ int main(void)
 	  		  adc_flag = 0; //clear adc_flag
 
 
+
 	  		  /* write the string to the file */
 	  		  fresult = f_printf(&fil, "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
 	  				  adc[0], adc[1], adc[2], adc[3], adc[4],
 	  				  adc[5], adc[6], adc[7], adc[8], adc[9]);
 
+	  		if (fresult != FR_OK) {
+	  			sprintf(str, "main f_printf err: %d\n", fresult);
+	  		}
+
 	  		  line_count++;
 	  	  }
 
-	  	  break;
-	    case CLOSING_FILE:
-	  	  /* close file */
-	  	  f_close(&fil);
+			break;
+		case CLOSING_FILE:
+			/* close file */
+			fresult = f_close(&fil);
 
-	  	  send_uart("Data Collection Halted.  Sending data written to serial stream\n\n");
+			if (fresult != FR_OK) {
+				sprintf(str, "main f_printf err: %d\n", fresult);
+			}
 
-	  	  bufclear();
+			send_uart("Data Collection Halted\n\n");
 
-	  	  unmount_sd();
+			bufclear();
 
-	  	  cur_state = IDLE;
+			unmount_sd();
 
-	  	  break;
-	    }
+			cur_state = IDLE;
 
-
-  }
+			break;
+		}
+   }
 
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
 }
@@ -733,11 +739,23 @@ void create_file()
 	/* once filename is new create file */
 	fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
+	if (fresult != FR_OK) {
+		sprintf(str, "f_open err: %d\n", fresult);
+	}
+
 	/* Writing text */
 	fresult = f_printf(&fil, "ADC0 ADC1 ADC2 ADC3 ADC4 ADC5 ADC6 ADC7 ADC8 ADC9\n");
 
+	if (fresult != FR_OK) {
+		sprintf(str, "f_printf err: %d\n", fresult);
+	}
+
 	/* Close file */
 	fresult = f_close(&fil);
+
+	if (fresult != FR_OK) {
+		sprintf(str, "f_close err: %d\n", fresult);
+	}
 
 	send_uart(name); //ex: File1.txt created and is ready for data to be written
 
