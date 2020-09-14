@@ -141,7 +141,7 @@ enum STATE cur_state = IDLE;
 int muxState = 0;
 
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
-volatile uint16_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
+volatile uint16_t adc_print_buf[ADC_NUM_CHANNELS * 3]; //to current buffer for the adc values
 int adc_flag = 0;
 int adc_buf_ready = 0;
 
@@ -257,25 +257,31 @@ int main(void)
 			} else if (adc_buf_ready) {
 				adc_buf_ready = 0;
 				/* write the string to the file */
-				fresult = f_printf(&fil,
-						"%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d", adc[0],
-						adc[1], adc[2], adc[3], adc[4], adc[5], adc[6], adc[7],
-						adc[8], adc[9]);
+//				fresult = f_printf(&fil,
+//								"%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+//						adc_print_buf[0], adc_print_buf[1],
+//						adc_print_buf[2], adc_print_buf[3],
+//						adc_print_buf[4], adc_print_buf[5],
+//						adc_print_buf[6], adc_print_buf[7],
+//						adc_print_buf[8], adc_print_buf[9],
+//						adc_print_buf[10], adc_print_buf[11],
+//						adc_print_buf[12], adc_print_buf[13],
+//						adc_print_buf[14], adc_print_buf[15],
+//						adc_print_buf[16], adc_print_buf[17],
+//						adc_print_buf[18], adc_print_buf[19],
+//						adc_print_buf[20], adc_print_buf[21],
+//						adc_print_buf[22], adc_print_buf[23],
+//						adc_print_buf[24], adc_print_buf[25],
+//						adc_print_buf[26], adc_print_buf[27],
+//								adc_print_buf[28], adc_print_buf[29]);
+				int temp = 0;
+				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 6,
+						&temp);
+
+				line_count += temp / (ADC_NUM_CHANNELS * 6);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
-					send_uart(str);
-				}
-
-				if (muxState == 3) {
-					fresult = f_printf(&fil, "\n");
-					line_count++;
-				} else {
-					fresult = f_printf(&fil, ",");
-				}
-
-				if (fresult != FR_OK) {
-					sprintf(str, "2main f_printf err: %d\n", fresult);
 					send_uart(str);
 				}
 			}
@@ -534,7 +540,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 7200-1;
+  htim1.Init.Prescaler = 720-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 500-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -734,7 +740,7 @@ void create_file() {
 	sprintf(name, "F%d.TXT", fileNumber);
 	while (f_stat(name, NULL) == FR_OK) {
 		fileNumber++;
-		sprintf(name, "F%d.TXT", fileNumber);
+		sprintf(name, "F%d.bin", fileNumber);
 	}
 
 	/* once filename is new create file */
@@ -797,29 +803,35 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+	int start = 0;
 	switch (muxState) {
 	case 0:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 2;
+		start = 0;
 		break;
 	case 2:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 3;
+		start = ADC_NUM_CHANNELS;
 		break;
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 0;
+		start = ADC_NUM_CHANNELS * 2;
 		break;
 	}
 
-	for (int i = 0; i < ADC_NUM_CHANNELS; i++) {
-		adc[i] = adc_buf[i];  // store the values in adc[]
+	for (int i = start; i < start + ADC_NUM_CHANNELS; i++) {
+		adc_print_buf[i] = adc_buf[i - start];  // store the values in adc[]
 	}
 
-	adc_buf_ready = 1;
+	if (muxState == 0) {
+		adc_buf_ready = 1;
+	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *handle) {
