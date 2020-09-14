@@ -138,6 +138,8 @@ enum STATE {
 
 enum STATE cur_state = IDLE;
 
+int muxState = 0;
+
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
 volatile uint16_t adc[ADC_NUM_CHANNELS]; //to current buffer for the adc values
 int adc_flag = 0;
@@ -240,8 +242,9 @@ int main(void)
 			cur_state = LOADED;
 			break;
 		case RUNNING:
-			if (adc_flag == 0) //restart adc collection
-					{
+			if (adc_flag == 0) {
+				//restart adc collection
+
 				// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
 				HAL_ADC_Start_DMA(&hadc, (uint32_t*) &adc_buf,
 				ADC_NUM_CHANNELS);
@@ -255,15 +258,26 @@ int main(void)
 				adc_buf_ready = 0;
 				/* write the string to the file */
 				fresult = f_printf(&fil,
-						"%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n", adc[0],
+						"%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d", adc[0],
 						adc[1], adc[2], adc[3], adc[4], adc[5], adc[6], adc[7],
 						adc[8], adc[9]);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
+					send_uart(str);
 				}
 
-				line_count++;
+				if (muxState == 3) {
+					fresult = f_printf(&fil, "\n");
+					line_count++;
+				} else {
+					fresult = f_printf(&fil, ",");
+				}
+
+				if (fresult != FR_OK) {
+					sprintf(str, "2main f_printf err: %d\n", fresult);
+					send_uart(str);
+				}
 			}
 
 			break;
@@ -783,7 +797,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	SEL_A_GPIO_Port->ODR ^= SEL_A_Pin; //toggle SEL pin
+	switch (muxState) {
+	case 0:
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+		muxState = 2;
+		break;
+	case 2:
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+		muxState = 3;
+		break;
+	case 3:
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
+		muxState = 0;
+		break;
+	}
 
 	for (int i = 0; i < ADC_NUM_CHANNELS; i++) {
 		adc[i] = adc_buf[i];  // store the values in adc[]
