@@ -638,19 +638,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, SEL_A_Pin|SEL_B_Pin|SEL_C_Pin|LD4_BLUE_LED_Pin
+                          |LD3_GREEN_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : BUTTON_Pin */
-  GPIO_InitStruct.Pin = BUTTON_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SEL_Pin LD4_BLUE_LED_Pin LD3_GREEN_LED_Pin */
-  GPIO_InitStruct.Pin = SEL_Pin|LD4_BLUE_LED_Pin|LD3_GREEN_LED_Pin;
+  /*Configure GPIO pins : SEL_A_Pin SEL_B_Pin SEL_C_Pin LD4_BLUE_LED_Pin
+                           LD3_GREEN_LED_Pin */
+  GPIO_InitStruct.Pin = SEL_A_Pin|SEL_B_Pin|SEL_C_Pin|LD4_BLUE_LED_Pin
+                          |LD3_GREEN_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -662,10 +659,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 }
 
@@ -790,7 +783,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	SEL_GPIO_Port->ODR ^= SEL_Pin; //toggle SEL pin
+	SEL_A_GPIO_Port->ODR ^= SEL_A_Pin; //toggle SEL pin
 
 	for (int i = 0; i < ADC_NUM_CHANNELS; i++) {
 		adc[i] = adc_buf[i];  // store the values in adc[]
