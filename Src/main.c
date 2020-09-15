@@ -89,7 +89,7 @@
 #define CMD_HELP 'h'
 
 #define UART_BUF_SIZE 1
-#define MSG_STR_SIZE 20
+#define MSG_STR_SIZE 30
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -141,7 +141,7 @@ enum STATE cur_state = IDLE;
 int muxState = 0;
 
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
-volatile uint16_t adc_print_buf[ADC_NUM_CHANNELS * 3]; //to current buffer for the adc values
+volatile uint16_t adc_print_buf[ADC_NUM_CHANNELS * 6]; //to current buffer for the adc values
 int adc_flag = 0;
 int adc_buf_ready = 0;
 
@@ -152,7 +152,7 @@ char RxData[UART_BUF_SIZE];
 FATFS fs;          // file system
 FIL fil;           // file
 FRESULT fresult;   // to store the result
-char buffer[1024]; // to store data
+//char buffer[1024]; // to store data
 
 UINT br, bw; // file read/write count
 
@@ -275,7 +275,7 @@ int main(void)
 //						adc_print_buf[26], adc_print_buf[27],
 //								adc_print_buf[28], adc_print_buf[29]);
 				int temp = 0;
-				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 6,
+				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 12,
 						&temp);
 
 				line_count += temp / (ADC_NUM_CHANNELS * 6);
@@ -303,7 +303,7 @@ int main(void)
 
 			send_uart("Data Collection Halted\n\n");
 
-			bufclear();
+//			bufclear();
 
 			unmount_sd();
 
@@ -700,12 +700,12 @@ int bufsize(char *buf) {
 	return i;
 }
 
-void bufclear(void) // clear buffer
-{
-	for (int i = 0; i < 1024; i++) {
-		buffer[i] = '\0';
-	}
-}
+//void bufclear(void) // clear buffer
+//{
+//	for (int i = 0; i < 1024; i++) {
+//		str[i] = '\0';
+//	}
+//}
 
 void mount_sd() {
 	/* Mount SD Card */
@@ -723,12 +723,12 @@ void read_card_details() {
 	f_getfree("", &fre_clust, &pfs);
 
 	total = (uint32_t) ((pfs->n_fatent - 2) * pfs->csize * 0.5);
-	sprintf(buffer, "SD CARD Total Size: \t%d\n", total);
-	send_uart(buffer);
+	sprintf(str, "SD CARD Total Size: \t%d\n", total);
+	send_uart(str);
 	bufclear();
 	free_space = (uint32_t) (fre_clust * pfs->csize * 0.5);
-	sprintf(buffer, "SD CARD Free Space: \t%d\n", free_space);
-	send_uart(buffer);
+	sprintf(str, "SD CARD Free Space: \t%d\n", free_space);
+	send_uart(str);
 }
 
 void create_file() {
@@ -737,7 +737,7 @@ void create_file() {
 	int fileNumber = 0;
 
 	//check if filename exist
-	sprintf(name, "F%d.TXT", fileNumber);
+	sprintf(name, "F%d.bin", fileNumber);
 	while (f_stat(name, NULL) == FR_OK) {
 		fileNumber++;
 		sprintf(name, "F%d.bin", fileNumber);
@@ -765,7 +765,7 @@ void create_file() {
 		sprintf(str, "f_close err: %d\n", fresult);
 	}
 
-	send_uart(name); //ex: File1.txt created and is ready for data to be written
+	send_uart(name); //ex: File1.bin created and is ready for data to be written
 
 	send_uart(" created and header was written \n");
 }
@@ -820,8 +820,26 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
-		muxState = 0;
+		muxState = 4;
 		start = ADC_NUM_CHANNELS * 2;
+		break;
+	case 4: //currently implemented as synonym for case 0
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+		muxState = 6;
+		start = ADC_NUM_CHANNELS * 3;
+		break;
+	case 6: //currently implemented as synonym for case 2
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+		muxState = 7;
+		start = ADC_NUM_CHANNELS * 4;
+		break;
+	case 7: //currently implemented as synonym for case 3
+		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
+		muxState = 0;
+		start = ADC_NUM_CHANNELS * 5;
 		break;
 	}
 
