@@ -55,6 +55,11 @@
  *
  * Resources Used:
  * https://www.youtube.com/watch?v=spVIZO-jbxE
+ *
+ * new resources:
+ * - https://01001000.xyz/2020-08-09-Tutorial-STM32CubeIDE-SD-card/
+ * - https://github.com/kiwih/cubeide-sd-card
+ *
  ******************************************************************************
  */
 /* USER CODE END Header */
