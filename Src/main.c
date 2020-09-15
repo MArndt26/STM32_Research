@@ -145,6 +145,7 @@ int adc_flag = 0;
 int adc_buf_ready = 0;
 
 int line_count = 0;
+int numConversions = 0;
 
 char RxData[UART_BUF_SIZE];
 
@@ -255,29 +256,12 @@ int main(void)
 				adc_flag = 1;
 			} else if (adc_buf_ready) {
 				adc_buf_ready = 0;
-				/* write the string to the file */
-//				fresult = f_printf(&fil,
-//								"%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
-//						adc_print_buf[0], adc_print_buf[1],
-//						adc_print_buf[2], adc_print_buf[3],
-//						adc_print_buf[4], adc_print_buf[5],
-//						adc_print_buf[6], adc_print_buf[7],
-//						adc_print_buf[8], adc_print_buf[9],
-//						adc_print_buf[10], adc_print_buf[11],
-//						adc_print_buf[12], adc_print_buf[13],
-//						adc_print_buf[14], adc_print_buf[15],
-//						adc_print_buf[16], adc_print_buf[17],
-//						adc_print_buf[18], adc_print_buf[19],
-//						adc_print_buf[20], adc_print_buf[21],
-//						adc_print_buf[22], adc_print_buf[23],
-//						adc_print_buf[24], adc_print_buf[25],
-//						adc_print_buf[26], adc_print_buf[27],
-//								adc_print_buf[28], adc_print_buf[29]);
+
 				int temp = 0;
 				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 12,
 						&temp);
 
-				line_count += temp / (ADC_NUM_CHANNELS * 6);
+				line_count += temp / (ADC_NUM_CHANNELS * 12);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
@@ -301,8 +285,6 @@ int main(void)
 			}
 
 			send_uart("Data Collection Halted\n\n");
-
-//			bufclear();
 
 			unmount_sd();
 
@@ -540,7 +522,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 720-1;
+  htim1.Init.Prescaler = 7200-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 500-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -779,6 +761,10 @@ void unmount_sd() {
 	sprintf(str, "line count: %d\n", line_count);
 
 	send_uart(str);
+
+	sprintf(str, "conversion ct: %d\n", numConversions);
+
+	send_uart(str);
 }
 
 /*Wrapper to blink LEDs*/
@@ -804,6 +790,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	int start = 0;
+	numConversions++;
 	switch (muxState) {
 	case 0:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
