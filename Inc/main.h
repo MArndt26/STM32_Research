@@ -69,7 +69,7 @@ void Error_Handler(void);
 #define LD3_GREEN_LED_Pin GPIO_PIN_9
 #define LD3_GREEN_LED_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
-
+#define SD_SPI_HANDLE hspi1
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

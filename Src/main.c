@@ -64,7 +64,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <fatfs_sd.h>
+//#include <fatfs_sd.h>
 #include <string.h>
 #include <inttypes.h>
 /* USER CODE END Includes */
