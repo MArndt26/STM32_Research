@@ -218,6 +218,8 @@ int main(void)
 	// Calibrate The ADC On Power-Up For Better Accuracy
 	HAL_ADCEx_Calibration_Start(&hadc);
 
+	HAL_TIM_Base_Start_IT(&htim1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -234,12 +236,10 @@ int main(void)
 		case LOADING_FILE:
 			break;
 		case CREATING_FILE:
-			__disable_irq();
 			mount_sd();
 			create_file();
 			fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE); // Open the file with write access
 			cur_state = LOADED;
-			__enable_irq();
 			break;
 		case LOADED:
 			blink(1, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
@@ -255,8 +255,6 @@ int main(void)
 				// Pass (The ADC Instance, Result Buffer Address, Buffer Length)
 				HAL_ADC_Start_DMA(&hadc, (uint32_t*) &adc_buf,
 				ADC_NUM_CHANNELS);
-
-				HAL_TIM_Base_Start_IT(&htim1);
 
 				line_count = 0;
 
@@ -278,9 +276,8 @@ int main(void)
 
 			break;
 		case CLOSING_FILE:
-			HAL_ADC_Stop_DMA(&hadc);
 
-			HAL_TIM_Base_Stop_IT(&htim1);
+			HAL_ADC_Stop_DMA(&hadc);
 
 			adc_flag = 0;
 
