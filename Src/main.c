@@ -83,6 +83,7 @@
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
 #define ADC_NUM_CHANNELS 10
+#define ADC_PRINT_BUF_SIZE 60
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
@@ -145,9 +146,10 @@ enum STATE cur_state = IDLE;
 int muxState = 0;
 
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
-volatile uint16_t adc_print_buf[ADC_NUM_CHANNELS * 6]; //to current buffer for the adc values
-int adc_flag = 0;
-int adc_buf_ready = 0;
+volatile uint16_t adc_print_buf[ADC_PRINT_BUF_SIZE]; //to current buffer for the adc values
+volatile int adc_flag = 0;
+volatile int adc_buf_ready = 0;
+volatile int adc_print_buf_ofset = 0;
 
 int line_count = 0;
 int numConversions = 0;
@@ -263,10 +265,10 @@ int main(void)
 				adc_buf_ready = 0;
 
 				int temp = 0;
-				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 12,
+				fresult = f_write(&fil, adc_print_buf, ADC_PRINT_BUF_SIZE,
 						&temp);
 
-				line_count += temp / (ADC_NUM_CHANNELS * 12);
+				line_count += temp / (ADC_PRINT_BUF_SIZE);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
@@ -794,49 +796,50 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	int start = 0;
 	numConversions++;
 	switch (muxState) {
 	case 0:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 2;
-		start = 0;
+		adc_print_buf_ofset = 0;
 		break;
 	case 2:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 3;
-		start = ADC_NUM_CHANNELS;
+		adc_print_buf_ofset = ADC_NUM_CHANNELS;
 		break;
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 4;
-		start = ADC_NUM_CHANNELS * 2;
+		adc_print_buf_ofset = ADC_NUM_CHANNELS * 2;
 		break;
 	case 4: //currently implemented as synonym for case 0
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 6;
-		start = ADC_NUM_CHANNELS * 3;
+		adc_print_buf_ofset = ADC_NUM_CHANNELS * 3;
 		break;
 	case 6: //currently implemented as synonym for case 2
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 7;
-		start = ADC_NUM_CHANNELS * 4;
+		adc_print_buf_ofset = ADC_NUM_CHANNELS * 4;
 		break;
 	case 7: //currently implemented as synonym for case 3
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 0;
-		start = ADC_NUM_CHANNELS * 5;
+		adc_print_buf_ofset = ADC_NUM_CHANNELS * 5;
 		break;
 	}
 
-	for (int i = start; i < start + ADC_NUM_CHANNELS; i++) {
-		adc_print_buf[i] = adc_buf[i - start];  // store the values in adc[]
+	int i;
+	for (i = adc_print_buf_ofset; i < adc_print_buf_ofset + ADC_NUM_CHANNELS;
+			i++) {
+		adc_print_buf[i] = adc_buf[i - adc_print_buf_ofset]; // store the values in adc[]
 	}
 
 	if (muxState == 0) {
