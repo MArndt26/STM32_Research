@@ -83,7 +83,7 @@
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
 #define ADC_NUM_CHANNELS 10
-#define ADC_PRINT_BUF_SIZE 60
+#define ADC_PRINT_BUF_SIZE 1200
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
@@ -153,6 +153,7 @@ volatile int adc_print_buf_ofset = 0;
 
 volatile int line_count = 0;
 volatile int numConversions = 0;
+volatile int numPrints = 0;
 
 char RxData[UART_BUF_SIZE];
 
@@ -261,6 +262,9 @@ int main(void)
 				adc_flag = 1;
 			} else if (adc_buf_ready) {
 				adc_buf_ready = 0;
+
+				numPrints++;
+
 
 				int temp = 0;
 				fresult = f_write(&fil, adc_print_buf, ADC_PRINT_BUF_SIZE,
@@ -767,6 +771,10 @@ void unmount_sd() {
 	send_uart(str);
 
 	sprintf(str, "conversion ct: %d\n", numConversions);
+
+	send_uart(str);
+
+	sprintf(str, "num prints: %d\n", numPrints);
 
 	send_uart(str);
 }
