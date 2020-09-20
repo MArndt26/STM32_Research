@@ -143,7 +143,7 @@ enum STATE {
 
 enum STATE cur_state = IDLE;
 
-int muxState = 0;
+volatile int muxState = 0;
 
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
 volatile uint16_t adc_print_buf[ADC_PRINT_BUF_SIZE]; //to current buffer for the adc values
@@ -151,8 +151,8 @@ volatile int adc_flag = 0;
 volatile int adc_buf_ready = 0;
 volatile int adc_print_buf_ofset = 0;
 
-int line_count = 0;
-int numConversions = 0;
+volatile int line_count = 0;
+volatile int numConversions = 0;
 
 char RxData[UART_BUF_SIZE];
 
@@ -802,37 +802,31 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 2;
-		adc_print_buf_ofset = 0;
 		break;
 	case 2:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 3;
-		adc_print_buf_ofset = ADC_NUM_CHANNELS;
 		break;
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 4;
-		adc_print_buf_ofset = ADC_NUM_CHANNELS * 2;
 		break;
 	case 4: //currently implemented as synonym for case 0
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 6;
-		adc_print_buf_ofset = ADC_NUM_CHANNELS * 3;
 		break;
 	case 6: //currently implemented as synonym for case 2
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 7;
-		adc_print_buf_ofset = ADC_NUM_CHANNELS * 4;
 		break;
 	case 7: //currently implemented as synonym for case 3
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 0;
-		adc_print_buf_ofset = ADC_NUM_CHANNELS * 5;
 		break;
 	}
 
@@ -841,8 +835,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 			i++) {
 		adc_print_buf[i] = adc_buf[i - adc_print_buf_ofset]; // store the values in adc[]
 	}
+	adc_print_buf_ofset = i;
 
-	if (muxState == 0) {
+	if (adc_print_buf_ofset > ADC_PRINT_BUF_SIZE) {
+		adc_print_buf_ofset = 0;
 		adc_buf_ready = 1;
 	}
 }
