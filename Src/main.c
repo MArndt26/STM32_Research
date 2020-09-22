@@ -84,7 +84,7 @@
 #define SHOW_UART_WRITE 0
 #define ADC_NUM_CHANNELS 10
 #define ADC_PRINT_BUF_SIZE 480
-#define ADC_NUM_MUX_CHANNELS 60
+#define ADC_NUM_MUX_CHANNELS 30
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
@@ -809,23 +809,23 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
-		muxState = 4;
-		break;
-	case 4: //currently implemented as synonym for case 0
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
-		muxState = 6;
-		break;
-	case 6: //currently implemented as synonym for case 2
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
-		muxState = 7;
-		break;
-	case 7: //currently implemented as synonym for case 3
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 0;
 		break;
+//	case 4: //currently implemented as synonym for case 0
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+//		muxState = 6;
+//		break;
+//	case 6: //currently implemented as synonym for case 2
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+//		muxState = 7;
+//		break;
+//	case 7: //currently implemented as synonym for case 3
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
+//		muxState = 0;
+//		break;
 	}
 
 	int i;
