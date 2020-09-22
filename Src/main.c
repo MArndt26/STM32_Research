@@ -83,7 +83,8 @@
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
 #define ADC_NUM_CHANNELS 10
-#define ADC_PRINT_BUF_SIZE 1200
+#define ADC_PRINT_BUF_SIZE 480
+#define ADC_NUM_MUX_CHANNELS 60
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
@@ -267,10 +268,11 @@ int main(void)
 
 
 				int temp = 0;
-				fresult = f_write(&fil, adc_print_buf, ADC_PRINT_BUF_SIZE,
+				//f_write(file pointer, pointer to data buffer, number of bytes to write, pointer to variable to return number of bytes written)
+				fresult = f_write(&fil, adc_print_buf, ADC_PRINT_BUF_SIZE * 2,
 						&temp);
 
-				line_count += temp / (ADC_PRINT_BUF_SIZE);
+				line_count += temp / (ADC_NUM_MUX_CHANNELS * 2);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
@@ -690,13 +692,6 @@ int bufsize(char *buf) {
 	return i;
 }
 
-//void bufclear(void) // clear buffer
-//{
-//	for (int i = 0; i < 1024; i++) {
-//		str[i] = '\0';
-//	}
-//}
-
 void mount_sd() {
 	/* Mount SD Card */
 	fresult = f_mount(&fs, "", 1);
@@ -777,6 +772,16 @@ void unmount_sd() {
 	sprintf(str, "num prints: %d\n", numPrints);
 
 	send_uart(str);
+
+	//adc values buffered with dma
+	sprintf(str, "dma vals: %d\n", numConversions * 10);
+
+	send_uart(str);
+
+	//adc vals printed in main loop
+	sprintf(str, "main vals: %d\n", numPrints * ADC_PRINT_BUF_SIZE);
+
+	send_uart(str);
 }
 
 /*Wrapper to blink LEDs*/
@@ -788,20 +793,8 @@ void blink(int num_blinks, GPIO_TypeDef* port, uint16_t pin) {
 	}
 }
 
-/*******************Interrupt Callbacks*******************/
-
-/**
- * @brief EXTI line detection callbacks
- * @param GPIO_Pin: Specifies the pins connected EXTI line
- * @retval None
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	/* Toggle LED1 */
-	bp++;
-}
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	numConversions++;
 	switch (muxState) {
 	case 0:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
@@ -846,6 +839,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 		adc_print_buf_ofset = 0;
 		adc_buf_ready = 1;
 	}
+
+	numConversions++;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *handle) {
