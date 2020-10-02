@@ -83,6 +83,8 @@
 /* USER CODE BEGIN PD */
 #define SHOW_UART_WRITE 0
 #define ADC_NUM_CHANNELS 10
+#define ADC_PRINT_BUF_SIZE 480
+#define ADC_NUM_MUX_CHANNELS 30
 
 #define CMD_START 's'
 #define CMD_CREATE_DEFAULT 'd'
@@ -142,15 +144,17 @@ enum STATE {
 
 enum STATE cur_state = IDLE;
 
-int muxState = 0;
+volatile int muxState = 0;
 
 volatile uint16_t adc_buf[ADC_NUM_CHANNELS]; //working buffer for the adc values
-volatile uint16_t adc_print_buf[ADC_NUM_CHANNELS * 6]; //to current buffer for the adc values
-int adc_flag = 0;
-int adc_buf_ready = 0;
+volatile uint16_t adc_print_buf[ADC_PRINT_BUF_SIZE]; //to current buffer for the adc values
+volatile int adc_flag = 0;
+volatile int adc_buf_ready = 0;
+volatile int adc_print_buf_ofset = 0;
 
-int line_count = 0;
-int numConversions = 0;
+volatile int line_count = 0;
+volatile int numConversions = 0;
+volatile int numPrints = 0;
 
 char RxData[UART_BUF_SIZE];
 
@@ -218,6 +222,8 @@ int main(void)
 	// Calibrate The ADC On Power-Up For Better Accuracy
 	HAL_ADCEx_Calibration_Start(&hadc);
 
+	HAL_TIM_Base_Start_IT(&htim1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -234,12 +240,10 @@ int main(void)
 		case LOADING_FILE:
 			break;
 		case CREATING_FILE:
-			__disable_irq();
 			mount_sd();
 			create_file();
 			fresult = f_open(&fil, name, FA_OPEN_ALWAYS | FA_WRITE); // Open the file with write access
 			cur_state = LOADED;
-			__enable_irq();
 			break;
 		case LOADED:
 			blink(1, LD3_GREEN_LED_GPIO_Port, LD3_GREEN_LED_Pin);
@@ -256,19 +260,21 @@ int main(void)
 				HAL_ADC_Start_DMA(&hadc, (uint32_t*) &adc_buf,
 				ADC_NUM_CHANNELS);
 
-				HAL_TIM_Base_Start_IT(&htim1);
-
 				line_count = 0;
 
 				adc_flag = 1;
 			} else if (adc_buf_ready) {
 				adc_buf_ready = 0;
 
+				numPrints++;
+
+
 				int temp = 0;
-				fresult = f_write(&fil, adc_print_buf, ADC_NUM_CHANNELS * 12,
+				//f_write(file pointer, pointer to data buffer, number of bytes to write, pointer to variable to return number of bytes written)
+				fresult = f_write(&fil, adc_print_buf, ADC_PRINT_BUF_SIZE * 2,
 						&temp);
 
-				line_count += temp / (ADC_NUM_CHANNELS * 12);
+				line_count += temp / (ADC_NUM_MUX_CHANNELS * 2);
 
 				if (fresult != FR_OK) {
 					sprintf(str, "main f_printf err: %d\n", fresult);
@@ -278,9 +284,8 @@ int main(void)
 
 			break;
 		case CLOSING_FILE:
-			HAL_ADC_Stop_DMA(&hadc);
 
-			HAL_TIM_Base_Stop_IT(&htim1);
+			HAL_ADC_Stop_DMA(&hadc);
 
 			adc_flag = 0;
 
@@ -529,9 +534,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 7200-1;
+  htim1.Init.Prescaler = 4000-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 500-1;
+  htim1.Init.Period = 2-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -689,13 +694,6 @@ int bufsize(char *buf) {
 	return i;
 }
 
-//void bufclear(void) // clear buffer
-//{
-//	for (int i = 0; i < 1024; i++) {
-//		str[i] = '\0';
-//	}
-//}
-
 void mount_sd() {
 	/* Mount SD Card */
 	fresult = f_mount(&fs, "", 1);
@@ -772,6 +770,20 @@ void unmount_sd() {
 	sprintf(str, "conversion ct: %d\n", numConversions);
 
 	send_uart(str);
+
+	sprintf(str, "num prints: %d\n", numPrints);
+
+	send_uart(str);
+
+	//adc values buffered with dma
+	sprintf(str, "dma vals: %d\n", numConversions * 10);
+
+	send_uart(str);
+
+	//adc vals printed in main loop
+	sprintf(str, "main vals: %d\n", numPrints * ADC_PRINT_BUF_SIZE);
+
+	send_uart(str);
 }
 
 /*Wrapper to blink LEDs*/
@@ -783,67 +795,54 @@ void blink(int num_blinks, GPIO_TypeDef* port, uint16_t pin) {
 	}
 }
 
-/*******************Interrupt Callbacks*******************/
-
-/**
- * @brief EXTI line detection callbacks
- * @param GPIO_Pin: Specifies the pins connected EXTI line
- * @retval None
- */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	/* Toggle LED1 */
-	bp++;
-}
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-	int start = 0;
-	numConversions++;
 	switch (muxState) {
 	case 0:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 2;
-		start = 0;
 		break;
 	case 2:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
 		muxState = 3;
-		start = ADC_NUM_CHANNELS;
 		break;
 	case 3:
 		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
-		muxState = 4;
-		start = ADC_NUM_CHANNELS * 2;
-		break;
-	case 4: //currently implemented as synonym for case 0
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
-		muxState = 6;
-		start = ADC_NUM_CHANNELS * 3;
-		break;
-	case 6: //currently implemented as synonym for case 2
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
-		muxState = 7;
-		start = ADC_NUM_CHANNELS * 4;
-		break;
-	case 7: //currently implemented as synonym for case 3
-		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
 		muxState = 0;
-		start = ADC_NUM_CHANNELS * 5;
 		break;
+//	case 4: //currently implemented as synonym for case 0
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+//		muxState = 6;
+//		break;
+//	case 6: //currently implemented as synonym for case 2
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_RESET);
+//		muxState = 7;
+//		break;
+//	case 7: //currently implemented as synonym for case 3
+//		HAL_GPIO_WritePin(SEL_A_GPIO_Port, SEL_A_Pin, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(SEL_B_GPIO_Port, SEL_B_Pin, GPIO_PIN_SET);
+//		muxState = 0;
+//		break;
 	}
 
-	for (int i = start; i < start + ADC_NUM_CHANNELS; i++) {
-		adc_print_buf[i] = adc_buf[i - start];  // store the values in adc[]
+	int i;
+	for (i = adc_print_buf_ofset; i < adc_print_buf_ofset + ADC_NUM_CHANNELS;
+			i++) {
+		adc_print_buf[i] = adc_buf[i - adc_print_buf_ofset]; // store the values in adc[]
 	}
+	adc_print_buf_ofset = i;
 
-	if (muxState == 0) {
+	if (adc_print_buf_ofset > ADC_PRINT_BUF_SIZE) {
+		adc_print_buf_ofset = 0;
 		adc_buf_ready = 1;
 	}
+
+	numConversions++;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *handle) {
